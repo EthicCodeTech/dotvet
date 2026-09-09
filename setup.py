@@ -5,12 +5,12 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 setup(
     name="dotvet",
-    version="0.1.3",
+    version="0.1.4",
     description="Zero-config environment variable security scanner & quality gate.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="EthicCode Technologies",
-    author_email="contact@ethiccode.in",
+    author_email="hi@ethiccode.in",
     license="MIT",
     url="https://github.com/EthicCodes/dotvet",
     packages=find_packages(include=["dotvet", "dotvet.*"]),

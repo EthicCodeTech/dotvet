@@ -183,32 +183,14 @@ jobs:
           PORT: "3000"
 ```
 
----
-
-## 📦 Publishing Tonight
-
-### Publish to npm
-```bash
-npm publish --access public
-```
-
-### Publish to PyPI
-```bash
-python3 -m pip install --upgrade build twine
-python3 -m build
-python3 -m twine upload dist/*
-```
-
----
-
 ## 🔒 Why Zero Dependencies?
 
-Recent attacks on the open-source supply chain (such as the ChainDrop worm) demonstrated how deeply nested dependencies can introduce backdoors into developer tooling.
+Recent attacks on the open-source supply chain demonstrated how deeply nested dependencies can introduce backdoors into developer tooling.
 
-`dotvet` is designed from the ground up with **0 runtime dependencies** in both Node.js and Python. It runs exclusively using native language standard libraries, guaranteeing:
+`dotvet` is designed from the ground up with **0 runtime dependencies** in both Node.js and Python. It runs exclusively using native standard libraries, guaranteeing:
 - Sub-200ms cold startup in CI.
 - Zero transitive supply chain attack surface.
-- Immunity to package manager lifecycle hook breaking changes (e.g. npm v12).
+- Full immunity to third-party package vulnerabilities.
 
 ---
 
@@ -216,7 +198,7 @@ Recent attacks on the open-source supply chain (such as the ChainDrop worm) demo
 
 **dotvet** is an open-source initiative designed, built, and maintained by **[EthicCode Technologies](https://ethiccode.in)**.
 * Website: [ethiccode.in/dotvet](https://ethiccode.in/dotvet)
-* Contact: [contact@ethiccode.in](mailto:contact@ethiccode.in)
+* Contact: [hi@ethiccode.in](mailto:hi@ethiccode.in)
 
 ---
 

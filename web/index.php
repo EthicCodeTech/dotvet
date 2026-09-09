@@ -6,13 +6,13 @@
  */
 
 $app_name = "dotvet";
-$version = "0.1.3";
+$version = "0.1.4";
 $maker = "EthicCode Technologies";
 $site_url = "https://ethiccode.in/dotvet";
 $pypi_url = "https://pypi.org/project/dotvet/";
 $npm_url = "https://www.npmjs.com/package/dotvet";
 $github_url = "https://github.com/EthicCodes/dotvet";
-$contact_email = "contact@ethiccode.in";
+$contact_email = "hi@ethiccode.in";
 $current_year = date("Y");
 ?>
 <!DOCTYPE html>
