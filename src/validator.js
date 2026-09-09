@@ -29,8 +29,192 @@ const PLACEHOLDER_PATTERNS = [
   /^xxx+$/i
 ];
 
-const SECRET_NAME_REGEX = /(?:SECRET|TOKEN|KEY|PASSWD|PASSWORD|AUTH|PRIVATE|CREDENTIAL|SIGNING)/i;
-const JWT_NAME_REGEX = /(?:JWT|JWT[-_]?SECRET|ACCESS[-_]?TOKEN[-_]?SECRET|REFRESH[-_]?TOKEN[-_]?SECRET)/i;
+// Variables ending or matching configuration, duration, lifetime, or metadata terms are not secrets
+export const NON_SECRET_PATTERN = /(?:EXPIR|TTL|TIMEOUT|LIFETIME|MAX[-_]?AGE|INTERVAL|PERIOD|DURATION|UNIT|DAYS?|HOURS?|MINUTES?|SECONDS?|MILLIS|MS|ALGORITHM|ALG|ISSUER|AUDIENCE|URL|URI|HOST|PORT|ENDPOINT|DOMAIN|NAME|TYPE|MODE|HEADER|PREFIX|VERSION)/i;
+
+export const SECRET_NAME_REGEX = /(?:SECRET|TOKEN|KEY|PASSWD|PASSWORD|AUTH|PRIVATE|CREDENTIAL|SIGNING)/i;
+export const JWT_SECRET_REGEX = /(?:JWT[-_]?SECRET|ACCESS[-_]?TOKEN[-_]?SECRET|REFRESH[-_]?TOKEN[-_]?SECRET|^JWT$|^JWT[-_]?(?:KEY|SIGNING))/i;
+
+export function isSecretVarName(varName) {
+  if (!varName) return false;
+  if (NON_SECRET_PATTERN.test(varName)) return false;
+  return SECRET_NAME_REGEX.test(varName) || JWT_SECRET_REGEX.test(varName);
+}
+
+export function isJwtSecretVarName(varName) {
+  if (!varName) return false;
+  if (NON_SECRET_PATTERN.test(varName)) return false;
+  return JWT_SECRET_REGEX.test(varName);
+}
+
+/**
+ * Loads ignore rules from .dotvetignore, .dotvetrc, .dotvetrc.json, package.json, inline .env comments, and CLI arguments.
+ */
+export function loadIgnoreConfig({
+  rootDir = process.cwd(),
+  envFilePath = '.env',
+  envContent = null,
+  cliIgnores = []
+} = {}) {
+  const ignoredVars = new Set();
+  const ignoredRules = new Set();
+  const ignoredPairs = new Set();
+
+  function addIgnoreEntry(entry) {
+    if (!entry) return;
+    const trimmed = String(entry).trim();
+    if (!trimmed || trimmed.startsWith('#')) return;
+
+    if (trimmed.includes(':')) {
+      const [v, r] = trimmed.split(':').map(s => s.trim());
+      if (v === '*') {
+        ignoredRules.add(r);
+      } else if (r === '*') {
+        ignoredVars.add(v);
+      } else {
+        ignoredPairs.add(`${v}:${r}`);
+      }
+    } else {
+      const KNOWN_RULES = [
+        'MISSING_ENV_VAR', 'EMPTY_ENV_VAR', 'PLACEHOLDER_SECRET',
+        'TEMPLATE_URL_UNCONFIGURED', 'VENDOR_SECRET_EXPOSED', 'JWT_UNDERSIZED',
+        'REPETITIVE_SECRET', 'LOW_ENTROPY_SECRET', 'WEAK_SECRET_LENGTH',
+        'GITIGNORE_MISSING', 'HISTORICAL_ENV_LEAK'
+      ];
+      if (KNOWN_RULES.includes(trimmed)) {
+        ignoredRules.add(trimmed);
+      } else {
+        ignoredVars.add(trimmed);
+      }
+    }
+  }
+
+  // 1. .dotvetignore file
+  const dotvetignorePath = path.join(rootDir, '.dotvetignore');
+  if (fs.existsSync(dotvetignorePath)) {
+    try {
+      const lines = fs.readFileSync(dotvetignorePath, 'utf8').split(/\r?\n/);
+      for (const line of lines) {
+        addIgnoreEntry(line);
+      }
+    } catch {
+      // ignore read error
+    }
+  }
+
+  // 2. .dotvetrc or .dotvetrc.json
+  for (const rcName of ['.dotvetrc.json', '.dotvetrc']) {
+    const rcPath = path.join(rootDir, rcName);
+    if (fs.existsSync(rcPath)) {
+      try {
+        const rcData = JSON.parse(fs.readFileSync(rcPath, 'utf8'));
+        if (Array.isArray(rcData.ignore)) {
+          rcData.ignore.forEach(addIgnoreEntry);
+        }
+      } catch {
+        // ignore parse error
+      }
+    }
+  }
+
+  // 3. package.json "dotvet" config
+  const pkgPath = path.join(rootDir, 'package.json');
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      if (pkg.dotvet && Array.isArray(pkg.dotvet.ignore)) {
+        pkg.dotvet.ignore.forEach(addIgnoreEntry);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 4. Inline comments in .env file (e.g. `VAR=value # dotvet-ignore` or `# dotvet-ignore\nVAR=value`)
+  let content = envContent;
+  if (content === null) {
+    const fullEnvPath = path.resolve(rootDir, envFilePath);
+    if (fs.existsSync(fullEnvPath)) {
+      try {
+        content = fs.readFileSync(fullEnvPath, 'utf8');
+      } catch {
+        content = '';
+      }
+    }
+  }
+  if (content) {
+    const lines = content.split(/\r?\n/);
+    let prevLineHadIgnore = false;
+    let prevLineRule = null;
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) {
+        prevLineHadIgnore = false;
+        prevLineRule = null;
+        continue;
+      }
+
+      // Check if comment line is # dotvet-ignore or # dotvet-ignore:RULE
+      const ignoreMatch = line.match(/^#\s*dotvet-ignore(?::([A-Za-z0-9_]+))?/i);
+      if (ignoreMatch) {
+        prevLineHadIgnore = true;
+        prevLineRule = ignoreMatch[1] || null;
+        continue;
+      }
+
+      let workLine = line;
+      if (workLine.startsWith('export ')) {
+        workLine = workLine.slice(7).trim();
+      }
+      const eqIdx = workLine.indexOf('=');
+      if (eqIdx !== -1) {
+        const key = workLine.slice(0, eqIdx).trim();
+        const remainder = workLine.slice(eqIdx + 1);
+
+        const inlineMatch = remainder.match(/#\s*dotvet-ignore(?::([A-Za-z0-9_]+))?/i);
+        if (inlineMatch) {
+          const rule = inlineMatch[1] || null;
+          if (rule) {
+            addIgnoreEntry(`${key}:${rule}`);
+          } else {
+            addIgnoreEntry(key);
+          }
+        } else if (prevLineHadIgnore) {
+          if (prevLineRule) {
+            addIgnoreEntry(`${key}:${prevLineRule}`);
+          } else {
+            addIgnoreEntry(key);
+          }
+        }
+      }
+
+      prevLineHadIgnore = false;
+      prevLineRule = null;
+    }
+  }
+
+  // 5. CLI ignores
+  if (Array.isArray(cliIgnores)) {
+    for (const item of cliIgnores) {
+      if (typeof item === 'string') {
+        item.split(',').forEach(addIgnoreEntry);
+      }
+    }
+  }
+
+  return {
+    ignoredVars,
+    ignoredRules,
+    ignoredPairs,
+    isIgnored(varName, ruleName) {
+      if (varName && ignoredVars.has(varName)) return true;
+      if (ruleName && ignoredRules.has(ruleName)) return true;
+      if (varName && ruleName && ignoredPairs.has(`${varName}:${ruleName}`)) return true;
+      return false;
+    }
+  };
+}
 
 // High-profile vendor token formats that should never be in placeholder or unencrypted code
 const KNOWN_LEAK_PATTERNS = [
@@ -198,10 +382,27 @@ export function validateEnv({
   envValues = {},
   rootDir = process.cwd(),
   envFilePath = '.env',
-  strict = false
+  strict = false,
+  ignores = [],
+  ignoreConfig = null
 }) {
   const issues = [];
+  const ignoredIssues = [];
   const valid = [];
+
+  const cfg = ignoreConfig || loadIgnoreConfig({
+    rootDir,
+    envFilePath,
+    cliIgnores: ignores
+  });
+
+  function addIssue(issue) {
+    if (cfg.isIgnored(issue.name, issue.rule)) {
+      ignoredIssues.push(issue);
+    } else {
+      issues.push(issue);
+    }
+  }
 
   // Combine provided env with process.env fallback (CI or host machine env)
   const mergedEnv = { ...process.env, ...envValues };
@@ -221,7 +422,7 @@ export function validateEnv({
       }
     }
     if (!isGitignored) {
-      issues.push({
+      addIssue({
         name: envFilePath,
         severity: 'WARN',
         rule: 'GITIGNORE_MISSING',
@@ -241,7 +442,7 @@ export function validateEnv({
       ? `This commit was pushed to a remote repository! If this repository is or ever becomes public, credentials in ${leak.file} WILL be scraped by automated bots in seconds. ROTATE ALL EXPOSED SECRETS IMMEDIATELY at your providers (OpenAI, AWS, MongoDB, Stripe, etc.).`
       : `This commit is currently local-only. Remove the commit or reset before pushing to your remote.`;
 
-    issues.push({
+    addIssue({
       name: leak.file,
       severity: strict ? 'ERROR' : 'WARN',
       rule: 'HISTORICAL_ENV_LEAK',
@@ -260,7 +461,7 @@ export function validateEnv({
 
     // Case A: Missing
     if (!isProvided) {
-      issues.push({
+      addIssue({
         name: varName,
         severity: 'ERROR',
         rule: 'MISSING_ENV_VAR',
@@ -275,7 +476,7 @@ export function validateEnv({
 
     // Case B: Empty value
     if (strVal === '') {
-      issues.push({
+      addIssue({
         name: varName,
         severity: 'ERROR',
         rule: 'EMPTY_ENV_VAR',
@@ -288,7 +489,7 @@ export function validateEnv({
 
     // Case C1: Placeholder detection
     if (isPlaceholder(strVal)) {
-      issues.push({
+      addIssue({
         name: varName,
         severity: 'ERROR',
         rule: 'PLACEHOLDER_SECRET',
@@ -301,7 +502,7 @@ export function validateEnv({
 
     // Case C2: Template / Mock Connection URLs (e.g. postgresql://user:password@localhost:5432/dbname)
     if (TEMPLATE_URL_PATTERNS.some(pat => pat.test(strVal))) {
-      issues.push({
+      addIssue({
         name: varName,
         severity: 'ERROR',
         rule: 'TEMPLATE_URL_UNCONFIGURED',
@@ -315,7 +516,7 @@ export function validateEnv({
     // Case C3: High-profile vendor secret exposure check (e.g. live AWS/Stripe tokens)
     const leakedVendor = KNOWN_LEAK_PATTERNS.find(pat => pat.regex.test(strVal));
     if (leakedVendor) {
-      issues.push({
+      addIssue({
         name: varName,
         severity: 'WARN',
         rule: 'VENDOR_SECRET_EXPOSED',
@@ -326,9 +527,9 @@ export function validateEnv({
     }
 
     // Case D: JWT secret length enforcement (>= 32 characters)
-    if (JWT_NAME_REGEX.test(varName)) {
+    if (isJwtSecretVarName(varName)) {
       if (strVal.length < 32) {
-        issues.push({
+        addIssue({
           name: varName,
           severity: 'ERROR',
           rule: 'JWT_UNDERSIZED',
@@ -341,14 +542,14 @@ export function validateEnv({
     }
 
     // Case E: General Secret strength & entropy check (applies to secrets and JWTs)
-    if (SECRET_NAME_REGEX.test(varName) || JWT_NAME_REGEX.test(varName)) {
+    if (isSecretVarName(varName)) {
       // Check pattern repetition (single characters OR repeating multi-character patterns e.g. "abcdefghabcdefgh")
       const patternMatch = detectRepeatingPattern(strVal);
       if (patternMatch) {
         const desc = patternMatch.unit.length === 1 
           ? 'repeating single characters' 
           : `repeating sequence "${patternMatch.unit}"`;
-        issues.push({
+        addIssue({
           name: varName,
           severity: 'ERROR',
           rule: 'REPETITIVE_SECRET',
@@ -362,7 +563,7 @@ export function validateEnv({
       // Check Shannon entropy
       const entropy = calculateEntropy(strVal);
       if (entropy < 2.5 && strVal.length >= 8) {
-        issues.push({
+        addIssue({
           name: varName,
           severity: 'ERROR',
           rule: 'LOW_ENTROPY_SECRET',
@@ -374,8 +575,8 @@ export function validateEnv({
       }
 
       // If non-JWT secret is less than 16 characters
-      if (!JWT_NAME_REGEX.test(varName) && strVal.length < 16) {
-        issues.push({
+      if (!isJwtSecretVarName(varName) && strVal.length < 16) {
+        addIssue({
           name: varName,
           severity: strict ? 'ERROR' : 'WARN',
           rule: 'WEAK_SECRET_LENGTH',
@@ -390,7 +591,7 @@ export function validateEnv({
     valid.push({
       name: varName,
       length: strVal.length,
-      isSecret: SECRET_NAME_REGEX.test(varName) || JWT_NAME_REGEX.test(varName),
+      isSecret: isSecretVarName(varName) || isJwtSecretVarName(varName),
       occurrences
     });
   }
@@ -403,6 +604,7 @@ export function validateEnv({
     issues,
     errors,
     warnings,
+    ignored: ignoredIssues,
     valid,
     totalChecked: discoveredVars.size
   };

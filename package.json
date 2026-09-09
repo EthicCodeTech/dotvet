@@ -1,6 +1,6 @@
 {
   "name": "dotvet",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Zero-config environment variable security scanner and quality gate CLI. Validates presence, bans placeholders, and enforces secret strength (e.g. JWT >= 32 chars).",
   "type": "module",
   "main": "src/index.js",

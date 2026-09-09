@@ -2,13 +2,13 @@
   <title>dotvet: secure</title>
   <g shape-rendering="crispEdges">
     <rect width="70" height="20" fill="#0f172a"/>
-    <rect x="70" width="36" height="20" fill="#06b6d4"/>
+    <rect x="70" width="36" height="20" fill="#f59e0b"/>
   </g>
   <!-- .v Mini Brand Box -->
   <g transform="translate(5, 3)">
     <rect width="14" height="14" rx="3.5" fill="#1e293b" stroke="#334155" stroke-width="0.75"/>
     <text x="7" y="10.5" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'JetBrains Mono', monospace" font-size="8" font-weight="900" text-anchor="middle">
-      <tspan fill="#06b6d4">.</tspan><tspan fill="#ffffff">v</tspan>
+      <tspan fill="#f59e0b">.</tspan><tspan fill="#ffffff">v</tspan>
     </text>
   </g>
   <!-- dotvet label text -->
@@ -16,5 +16,5 @@
     <text x="46" y="14" text-anchor="middle" font-weight="600" fill="#f8fafc">dotvet</text>
   </g>
   <!-- Checkmark -->
-  <path d="M84 10.5l3 3.5 5.5-7.5" stroke="#082f49" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M84 10.5l3 3.5 5.5-7.5" stroke="#451a03" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

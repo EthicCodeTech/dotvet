@@ -125,6 +125,84 @@ class TestDotvetValidator(unittest.TestCase):
         self.assertTrue(any(w["rule"] == "VENDOR_SECRET_EXPOSED" for w in res["warnings"]))
         self.assertEqual(len(res["errors"]), 0)
 
+    def test_token_expiry_not_flagged_as_weak_secret(self):
+        discovered = {
+            "ACCESS_TOKEN_EXPIRY": {
+                "occurrences": [{"file": "auth.py", "line": 1, "snippet": "os.getenv('ACCESS_TOKEN_EXPIRY')"}]
+            },
+            "REFRESH_TOKEN_EXPIRY": {
+                "occurrences": [{"file": "auth.py", "line": 2, "snippet": "os.getenv('REFRESH_TOKEN_EXPIRY')"}]
+            },
+        }
+        env = {
+            "ACCESS_TOKEN_EXPIRY": "1d",
+            "REFRESH_TOKEN_EXPIRY": "10d",
+        }
+        res = validate_env(
+            discovered_vars=discovered,
+            env_values=env,
+            strict=True,
+        )
+        self.assertTrue(res["ok"])
+        self.assertEqual(len(res["errors"]), 0)
+        self.assertEqual(len(res["warnings"]), 0)
+
+    def test_dotvetignore_support(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            gitignore_path = os.path.join(tmp_dir, ".gitignore")
+            with open(gitignore_path, "w", encoding="utf-8") as f:
+                f.write(".env\n")
+            dotvetignore_path = os.path.join(tmp_dir, ".dotvetignore")
+            with open(dotvetignore_path, "w", encoding="utf-8") as f:
+                f.write("KNOWN_LEGACY_KEY\nCUSTOM_SECRET:WEAK_SECRET_LENGTH\n")
+
+            discovered = {
+                "KNOWN_LEGACY_KEY": {
+                    "occurrences": [{"file": "legacy.py", "line": 1, "snippet": "os.getenv('KNOWN_LEGACY_KEY')"}]
+                },
+                "CUSTOM_SECRET": {
+                    "occurrences": [{"file": "sec.py", "line": 1, "snippet": "os.getenv('CUSTOM_SECRET')"}]
+                },
+            }
+            env = {
+                "KNOWN_LEGACY_KEY": "short",
+                "CUSTOM_SECRET": "short",
+            }
+            res = validate_env(
+                discovered_vars=discovered,
+                env_values=env,
+                root_dir=tmp_dir,
+                strict=True,
+            )
+            self.assertTrue(res["ok"])
+            self.assertEqual(len(res["errors"]), 0)
+            self.assertEqual(len(res.get("ignored", [])), 2)
+
+    def test_inline_dotvet_ignore_comment(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            gitignore_path = os.path.join(tmp_dir, ".gitignore")
+            with open(gitignore_path, "w", encoding="utf-8") as f:
+                f.write(".env\n")
+            env_content = "LEGACY_API_KEY=abc # dotvet-ignore\n"
+            env_path = os.path.join(tmp_dir, ".env")
+            with open(env_path, "w", encoding="utf-8") as f:
+                f.write(env_content)
+
+            discovered = {
+                "LEGACY_API_KEY": {
+                    "occurrences": [{"file": "api.py", "line": 1, "snippet": "os.getenv('LEGACY_API_KEY')"}]
+                }
+            }
+            parsed = parse_dotenv(env_content)
+            res = validate_env(
+                discovered_vars=discovered,
+                env_values=parsed,
+                root_dir=tmp_dir,
+                strict=True,
+            )
+            self.assertTrue(res["ok"])
+            self.assertEqual(len(res.get("ignored", [])), 1)
+
 
 class TestDotvetGenerator(unittest.TestCase):
     def test_infer_var_meta(self):

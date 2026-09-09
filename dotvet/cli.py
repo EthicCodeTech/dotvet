@@ -41,13 +41,14 @@ def print_help():
   {C.CYAN}install-hook{C.RESET}  Install Git pre-commit hook to block committing insecure secrets
 
 {C.BOLD}OPTIONS:{C.RESET}
-  {C.YELLOW}--fix{C.RESET}           Automatically repair detected issues in local .env
-  {C.YELLOW}--env <path>{C.RESET}    Path to env file to inspect {C.DIM}(default: .env){C.RESET}
-  {C.YELLOW}--strict{C.RESET}        Treat warnings as hard failures (exit code 1)
-  {C.YELLOW}--ci{C.RESET}            CI mode: format errors as GitHub Actions annotations
-  {C.YELLOW}--json{C.RESET}          Emit results as machine-readable JSON
-  {C.YELLOW}-h, --help{C.RESET}      Show help and usage guide
-  {C.YELLOW}-v, --version{C.RESET}   Show dotvet version
+  {C.YELLOW}--fix{C.RESET}               Automatically repair detected issues in local .env
+  {C.YELLOW}--env <path>{C.RESET}        Path to env file to inspect {C.DIM}(default: .env){C.RESET}
+  {C.YELLOW}--ignore, -i <vars>{C.RESET}  Ignore specific variables or rules (comma-separated, .dotvetignore supported)
+  {C.YELLOW}--strict{C.RESET}            Treat warnings as hard failures (exit code 1)
+  {C.YELLOW}--ci{C.RESET}                CI mode: format errors as GitHub Actions annotations
+  {C.YELLOW}--json{C.RESET}              Emit results as machine-readable JSON
+  {C.YELLOW}-h, --help{C.RESET}          Show help and usage guide
+  {C.YELLOW}-v, --version{C.RESET}       Show dotvet version
 
 {C.BOLD}SECURITY CHECKS:{C.RESET}
   {C.DIM}•{C.RESET} Banned placeholders (e.g. "changeme", "your-secret-here", "dummy")
@@ -81,6 +82,18 @@ def run(args: List[str] = None, root_dir: str = ".") -> int:
         if idx + 1 < len(args):
             env_file_path = args[idx + 1]
 
+    ignores = []
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a in ("--ignore", "-i"):
+            if i + 1 < len(args) and not args[i + 1].startswith("-"):
+                ignores.append(args[i + 1])
+                i += 1
+        elif a.startswith("--ignore="):
+            ignores.append(a[9:])
+        i += 1
+
     sub_command = "fix" if wants_fix else "check"
     for a in args:
         if not a.startswith("-"):
@@ -109,6 +122,7 @@ def run(args: List[str] = None, root_dir: str = ".") -> int:
             discovered_vars=discovered_vars,
             root_dir=root_dir,
             env_file_path=env_file_path,
+            ignores=ignores,
         )
         if is_json:
             print(json.dumps(fix_result, indent=2))
@@ -171,6 +185,7 @@ def run(args: List[str] = None, root_dir: str = ".") -> int:
         root_dir=root_dir,
         env_file_path=env_file_path,
         strict=is_strict,
+        ignores=ignores,
     )
 
     if is_json:
@@ -210,6 +225,11 @@ def run(args: List[str] = None, root_dir: str = ".") -> int:
             print(f"  {C.CYAN}Fix:{C.RESET} {issue['solution']}\n")
         else:
             print()
+
+    # Reporting ignored issues if any
+    if result.get("ignored"):
+        ignored_names = sorted(list(set(item["name"] for item in result["ignored"])))
+        print(f"{C.DIM}ℹ {len(result['ignored'])} check{'s' if len(result['ignored']) != 1 else ''} ignored by configuration / .dotvetignore ({', '.join(ignored_names)}){C.RESET}\n")
 
     # Success list
     if result["valid"]:

@@ -117,6 +117,74 @@ describe('Validator & Security Rules (Node)', () => {
     const res = validateEnv({ discoveredVars: discovered, envValues: env });
     assert.ok(res.warnings.some(w => w.rule === 'VENDOR_SECRET_EXPOSED'));
   });
+
+  test('Token expiry and duration variables (e.g. ACCESS_TOKEN_EXPIRY="1d") pass without false positives', () => {
+    const discovered = new Map([
+      ['ACCESS_TOKEN_EXPIRY', { occurrences: [{ file: 'auth.js', line: 5, snippet: 'process.env.ACCESS_TOKEN_EXPIRY' }] }],
+      ['REFRESH_TOKEN_EXPIRY', { occurrences: [{ file: 'auth.js', line: 6, snippet: 'process.env.REFRESH_TOKEN_EXPIRY' }] }],
+      ['JWT_EXPIRES_IN', { occurrences: [{ file: 'auth.js', line: 7, snippet: 'process.env.JWT_EXPIRES_IN' }] }],
+      ['TOKEN_TTL', { occurrences: [{ file: 'auth.js', line: 8, snippet: 'process.env.TOKEN_TTL' }] }]
+    ]);
+    const env = {
+      ACCESS_TOKEN_EXPIRY: '1d',
+      REFRESH_TOKEN_EXPIRY: '10d',
+      JWT_EXPIRES_IN: '24h',
+      TOKEN_TTL: '3600'
+    };
+    const res = validateEnv({ discoveredVars: discovered, envValues: env, strict: true });
+    assert.strictEqual(res.ok, true, 'Token expiry duration strings must pass strict checks');
+    assert.strictEqual(res.errors.length, 0);
+    assert.strictEqual(res.warnings.length, 0);
+  });
+
+  test('loadIgnoreConfig supports .dotvetignore and CLI ignore flags', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotvet-ignore-test-'));
+    try {
+      fs.writeFileSync(path.join(tmpDir, '.dotvetignore'), 'EXEMPT_VAR\nCUSTOM_SECRET:WEAK_SECRET_LENGTH\n');
+      const discovered = new Map([
+        ['EXEMPT_VAR', { occurrences: [{ file: 'test.js', line: 1, snippet: 'process.env.EXEMPT_VAR' }] }],
+        ['CUSTOM_SECRET', { occurrences: [{ file: 'test.js', line: 2, snippet: 'process.env.CUSTOM_SECRET' }] }]
+      ]);
+      const env = {
+        EXEMPT_VAR: '',
+        CUSTOM_SECRET: 'short'
+      };
+      const res = validateEnv({
+        discoveredVars: discovered,
+        envValues: env,
+        rootDir: tmpDir,
+        strict: true
+      });
+      assert.strictEqual(res.ok, true);
+      assert.strictEqual(res.errors.length, 0);
+      assert.strictEqual(res.ignored.length, 2);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('Inline comments in .env (# dotvet-ignore) exempt variables from checks', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotvet-inline-test-'));
+    try {
+      fs.writeFileSync(path.join(tmpDir, '.gitignore'), '.env\n');
+      const envContent = 'LEGACY_API_KEY=abc # dotvet-ignore\n';
+      fs.writeFileSync(path.join(tmpDir, '.env'), envContent);
+      const discovered = new Map([
+        ['LEGACY_API_KEY', { occurrences: [{ file: 'api.js', line: 1, snippet: 'process.env.LEGACY_API_KEY' }] }]
+      ]);
+      const parsed = parseDotenv(envContent);
+      const res = validateEnv({
+        discoveredVars: discovered,
+        envValues: parsed,
+        rootDir: tmpDir,
+        strict: true
+      });
+      assert.strictEqual(res.ok, true);
+      assert.strictEqual(res.ignored.length, 1);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('Generator (Node)', () => {

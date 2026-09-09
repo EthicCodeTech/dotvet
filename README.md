@@ -167,11 +167,42 @@ dotvet scan — Discovered 3 environment variables:
 | Flag | Default | Description |
 | :--- | :--- | :--- |
 | `--env <path>` | `.env` | Path to environment file to audit |
+| `--ignore, -i <vars>` | | Ignore specific variables or rules (comma-separated, e.g. `-i LEGACY_KEY,API_KEY:WEAK_SECRET_LENGTH`) |
 | `--strict` | `false` | Treat warnings as hard errors (non-zero exit) |
 | `--ci` | `false` | Emits GitHub Actions annotations (`::error file=...`) |
 | `--json` | `false` | Emits machine-readable JSON output |
 | `-h, --help` | | Show usage help |
 | `-v, --version`| | Display version |
+
+---
+
+## 🛡️ Ignoring Variables & Rules
+
+Need to exempt a legacy variable or specific rule without compromising the entire security check? `dotvet` supports multiple flexible ways:
+
+### 1. `.dotvetignore` file (Repo root)
+Create a `.dotvetignore` file:
+```text
+# Exempt an entire variable from all checks
+LEGACY_CLIENT_TOKEN
+
+# Exempt a variable from a specific rule only
+CUSTOM_KEY:WEAK_SECRET_LENGTH
+```
+
+### 2. Inline `# dotvet-ignore` comments in `.env`
+```bash
+# Ignore all checks for this line
+LEGACY_KEY=short # dotvet-ignore
+
+# Or ignore a specific rule
+DEV_SECRET=short # dotvet-ignore:WEAK_SECRET_LENGTH
+```
+
+### 3. CLI flag (`--ignore`, `-i`)
+```bash
+npx dotvet check --strict --ignore "LEGACY_KEY,DEV_KEY:WEAK_SECRET_LENGTH"
+```
 
 ---
 

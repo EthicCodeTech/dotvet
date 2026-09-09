@@ -31,8 +31,162 @@ PLACEHOLDER_PATTERNS = [
     re.compile(r"^xxx+$", re.I),
 ]
 
+# Variables ending or matching configuration, duration, lifetime, or metadata terms are not secrets
+NON_SECRET_PATTERN = re.compile(r"(?:EXPIR|TTL|TIMEOUT|LIFETIME|MAX[-_]?AGE|INTERVAL|PERIOD|DURATION|UNIT|DAYS?|HOURS?|MINUTES?|SECONDS?|MILLIS|MS|ALGORITHM|ALG|ISSUER|AUDIENCE|URL|URI|HOST|PORT|ENDPOINT|DOMAIN|NAME|TYPE|MODE|HEADER|PREFIX|VERSION)", re.I)
 SECRET_NAME_REGEX = re.compile(r"(?:SECRET|TOKEN|KEY|PASSWD|PASSWORD|AUTH|PRIVATE|CREDENTIAL|SIGNING)", re.I)
-JWT_NAME_REGEX = re.compile(r"(?:JWT|JWT[-_]?SECRET|ACCESS[-_]?TOKEN[-_]?SECRET|REFRESH[-_]?TOKEN[-_]?SECRET)", re.I)
+JWT_SECRET_REGEX = re.compile(r"(?:JWT[-_]?SECRET|ACCESS[-_]?TOKEN[-_]?SECRET|REFRESH[-_]?TOKEN[-_]?SECRET|^JWT$|^JWT[-_]?(?:KEY|SIGNING))", re.I)
+
+def is_secret_var_name(var_name: str) -> bool:
+    if not var_name:
+        return False
+    if NON_SECRET_PATTERN.search(var_name):
+        return False
+    return bool(SECRET_NAME_REGEX.search(var_name) or JWT_SECRET_REGEX.search(var_name))
+
+def is_jwt_secret_var_name(var_name: str) -> bool:
+    if not var_name:
+        return False
+    if NON_SECRET_PATTERN.search(var_name):
+        return False
+    return bool(JWT_SECRET_REGEX.search(var_name))
+
+class IgnoreConfig:
+    def __init__(self, ignored_vars, ignored_rules, ignored_pairs):
+        self.ignored_vars = ignored_vars
+        self.ignored_rules = ignored_rules
+        self.ignored_pairs = ignored_pairs
+
+    def is_ignored(self, var_name: Optional[str] = None, rule_name: Optional[str] = None) -> bool:
+        if var_name and var_name in self.ignored_vars:
+            return True
+        if rule_name and rule_name in self.ignored_rules:
+            return True
+        if var_name and rule_name and f"{var_name}:{rule_name}" in self.ignored_pairs:
+            return True
+        return False
+
+def load_ignore_config(root_dir: str = ".", env_file_path: str = ".env", env_content: str = None, cli_ignores: List[str] = None) -> IgnoreConfig:
+    ignored_vars = set()
+    ignored_rules = set()
+    ignored_pairs = set()
+
+    def add_ignore_entry(entry: str):
+        if not entry:
+            return
+        trimmed = str(entry).strip()
+        if not trimmed or trimmed.startswith("#"):
+            return
+        if ":" in trimmed:
+            v, r = [s.strip() for s in trimmed.split(":", 1)]
+            if v == "*":
+                ignored_rules.add(r)
+            elif r == "*":
+                ignored_vars.add(v)
+            else:
+                ignored_pairs.add(f"{v}:{r}")
+        else:
+            known_rules = {
+                "MISSING_ENV_VAR", "EMPTY_ENV_VAR", "PLACEHOLDER_SECRET",
+                "TEMPLATE_URL_UNCONFIGURED", "VENDOR_SECRET_EXPOSED", "JWT_UNDERSIZED",
+                "REPETITIVE_SECRET", "LOW_ENTROPY_SECRET", "WEAK_SECRET_LENGTH",
+                "GITIGNORE_MISSING", "HISTORICAL_ENV_LEAK"
+            }
+            if trimmed in known_rules:
+                ignored_rules.add(trimmed)
+            else:
+                ignored_vars.add(trimmed)
+
+    # 1. .dotvetignore
+    ignore_file = os.path.join(root_dir, ".dotvetignore")
+    if os.path.isfile(ignore_file):
+        try:
+            with open(ignore_file, "r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    add_ignore_entry(line)
+        except Exception:
+            pass
+
+    # 2. .dotvetrc or .dotvetrc.json
+    for rc in [".dotvetrc.json", ".dotvetrc"]:
+        rc_path = os.path.join(root_dir, rc)
+        if os.path.isfile(rc_path):
+            try:
+                import json
+                with open(rc_path, "r", encoding="utf-8", errors="ignore") as f:
+                    rc_data = json.load(f)
+                    if isinstance(rc_data.get("ignore"), list):
+                        for item in rc_data["ignore"]:
+                            add_ignore_entry(item)
+            except Exception:
+                pass
+
+    # 3. package.json
+    pkg_path = os.path.join(root_dir, "package.json")
+    if os.path.isfile(pkg_path):
+        try:
+            import json
+            with open(pkg_path, "r", encoding="utf-8", errors="ignore") as f:
+                pkg_data = json.load(f)
+                if isinstance(pkg_data.get("dotvet", {}).get("ignore"), list):
+                    for item in pkg_data["dotvet"]["ignore"]:
+                        add_ignore_entry(item)
+        except Exception:
+            pass
+
+    # 4. Inline comments in .env
+    content = env_content
+    if content is None:
+        full_path = os.path.abspath(os.path.join(root_dir, env_file_path))
+        if os.path.isfile(full_path):
+            try:
+                with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+            except Exception:
+                content = ""
+    if content:
+        prev_had_ignore = False
+        prev_rule = None
+        for raw_line in content.splitlines():
+            line = raw_line.strip()
+            if not line:
+                prev_had_ignore = False
+                prev_rule = None
+                continue
+            m = re.match(r"^#\s*dotvet-ignore(?::([A-Za-z0-9_]+))?", line, re.I)
+            if m:
+                prev_had_ignore = True
+                prev_rule = m.group(1) or None
+                continue
+            work_line = line
+            if work_line.startswith("export "):
+                work_line = work_line[7:].strip()
+            eq_idx = work_line.find("=")
+            if eq_idx != -1:
+                key = work_line[:eq_idx].strip()
+                remainder = work_line[eq_idx + 1:]
+                im = re.search(r"#\s*dotvet-ignore(?::([A-Za-z0-9_]+))?", remainder, re.I)
+                if im:
+                    rule = im.group(1) or None
+                    if rule:
+                        add_ignore_entry(f"{key}:{rule}")
+                    else:
+                        add_ignore_entry(key)
+                elif prev_had_ignore:
+                    if prev_rule:
+                        add_ignore_entry(f"{key}:{prev_rule}")
+                    else:
+                        add_ignore_entry(key)
+            prev_had_ignore = False
+            prev_rule = None
+
+    # 5. CLI ignores
+    if cli_ignores:
+        for item in cli_ignores:
+            if isinstance(item, str):
+                for part in item.split(","):
+                    add_ignore_entry(part)
+
+    return IgnoreConfig(ignored_vars, ignored_rules, ignored_pairs)
 
 KNOWN_LEAK_PATTERNS = [
     {"name": "Stripe Secret Key", "regex": re.compile(r"sk_live_[0-9a-zA-Z]{24,}"), "example": "sk_live_..."},
@@ -170,10 +324,25 @@ def validate_env(
     root_dir: str = ".",
     env_file_path: str = ".env",
     strict: bool = False,
+    ignores: Optional[List[str]] = None,
+    ignore_config: Optional[IgnoreConfig] = None,
 ) -> Dict[str, Any]:
     """Validate discovered vars against actual environment values."""
     issues = []
+    ignored_issues = []
     valid = []
+
+    cfg = ignore_config or load_ignore_config(
+        root_dir=root_dir,
+        env_file_path=env_file_path,
+        cli_ignores=ignores
+    )
+
+    def add_issue(issue: Dict[str, Any]):
+        if cfg.is_ignored(issue.get("name", ""), issue.get("rule", "")):
+            ignored_issues.append(issue)
+        else:
+            issues.append(issue)
 
     # Merge process env and provided .env
     merged_env = dict(os.environ)
@@ -197,7 +366,7 @@ def validate_env(
             except Exception:
                 pass
         if not is_gitignored:
-            issues.append({
+            add_issue({
                 "name": env_file_path,
                 "severity": "WARN",
                 "rule": "GITIGNORE_MISSING",
@@ -214,7 +383,7 @@ def validate_env(
             if leak.get("is_pushed")
             else "This commit is currently local-only. Remove the commit or reset before pushing to your remote."
         )
-        issues.append({
+        add_issue({
             "name": leak["file"],
             "severity": "ERROR" if strict else "WARN",
             "rule": "HISTORICAL_ENV_LEAK",
@@ -230,7 +399,7 @@ def validate_env(
 
         # Case A: Missing
         if val is None:
-            issues.append({
+            add_issue({
                 "name": var_name,
                 "severity": "ERROR",
                 "rule": "MISSING_ENV_VAR",
@@ -244,7 +413,7 @@ def validate_env(
 
         # Case B: Empty
         if str_val == "":
-            issues.append({
+            add_issue({
                 "name": var_name,
                 "severity": "ERROR",
                 "rule": "EMPTY_ENV_VAR",
@@ -256,7 +425,7 @@ def validate_env(
 
         # Case C1: Placeholder
         if is_placeholder(str_val):
-            issues.append({
+            add_issue({
                 "name": var_name,
                 "severity": "ERROR",
                 "rule": "PLACEHOLDER_SECRET",
@@ -268,7 +437,7 @@ def validate_env(
 
         # Case C2: Template / Mock Connection URLs (e.g. postgresql://user:password@localhost:5432/dbname)
         if any(pat.search(str_val) for pat in TEMPLATE_URL_PATTERNS):
-            issues.append({
+            add_issue({
                 "name": var_name,
                 "severity": "ERROR",
                 "rule": "TEMPLATE_URL_UNCONFIGURED",
@@ -281,7 +450,7 @@ def validate_env(
         # Case C3: High-profile vendor secret exposure check (e.g. live AWS/Stripe tokens)
         leaked_vendor = next((pat for pat in KNOWN_LEAK_PATTERNS if pat["regex"].search(str_val)), None)
         if leaked_vendor:
-            issues.append({
+            add_issue({
                 "name": var_name,
                 "severity": "WARN",
                 "rule": "VENDOR_SECRET_EXPOSED",
@@ -291,9 +460,9 @@ def validate_env(
             })
 
         # Case D: JWT minimum 32 chars
-        if JWT_NAME_REGEX.search(var_name):
+        if is_jwt_secret_var_name(var_name):
             if len(str_val) < 32:
-                issues.append({
+                add_issue({
                     "name": var_name,
                     "severity": "ERROR",
                     "rule": "JWT_UNDERSIZED",
@@ -304,7 +473,7 @@ def validate_env(
                 continue
 
         # Case E: General secret strength & entropy check (applies to secrets and JWTs)
-        if SECRET_NAME_REGEX.search(var_name) or JWT_NAME_REGEX.search(var_name):
+        if is_secret_var_name(var_name):
             # Check pattern repetition (single characters OR repeating multi-character patterns e.g. "abcdefghabcdefgh")
             pattern_match = detect_repeating_pattern(str_val)
             if pattern_match:
@@ -313,7 +482,7 @@ def validate_env(
                     if len(pattern_match["unit"]) == 1
                     else f'repeating sequence "{pattern_match["unit"]}"'
                 )
-                issues.append({
+                add_issue({
                     "name": var_name,
                     "severity": "ERROR",
                     "rule": "REPETITIVE_SECRET",
@@ -326,7 +495,7 @@ def validate_env(
             # Check Shannon entropy
             entropy = calculate_entropy(str_val)
             if entropy < 2.5 and len(str_val) >= 8:
-                issues.append({
+                add_issue({
                     "name": var_name,
                     "severity": "ERROR",
                     "rule": "LOW_ENTROPY_SECRET",
@@ -337,8 +506,8 @@ def validate_env(
                 continue
 
             # If non-JWT secret is less than 16 characters
-            if not JWT_NAME_REGEX.search(var_name) and len(str_val) < 16:
-                issues.append({
+            if not is_jwt_secret_var_name(var_name) and len(str_val) < 16:
+                add_issue({
                     "name": var_name,
                     "severity": "ERROR" if strict else "WARN",
                     "rule": "WEAK_SECRET_LENGTH",
@@ -351,7 +520,7 @@ def validate_env(
         valid.append({
             "name": var_name,
             "length": len(str_val),
-            "isSecret": bool(SECRET_NAME_REGEX.search(var_name) or JWT_NAME_REGEX.search(var_name)),
+            "isSecret": bool(is_secret_var_name(var_name) or is_jwt_secret_var_name(var_name)),
             "occurrences": occurrences,
         })
 
@@ -363,6 +532,7 @@ def validate_env(
         "issues": issues,
         "errors": errors,
         "warnings": warnings,
+        "ignored": ignored_issues,
         "valid": valid,
         "totalChecked": len(discovered_vars),
     }

@@ -1,12 +1,16 @@
 import os
 import re
 import secrets
-from typing import Dict, List, Any
-from .validator import parse_dotenv, is_placeholder
+from typing import Dict, List, Any, Optional
+from .validator import (
+    parse_dotenv,
+    is_placeholder,
+    is_secret_var_name,
+    is_jwt_secret_var_name,
+    load_ignore_config,
+    IgnoreConfig,
+)
 from .generator import infer_var_meta
-
-JWT_NAME_REGEX = re.compile(r"(?:JWT|JWT[-_]?SECRET|ACCESS[-_]?TOKEN[-_]?SECRET|REFRESH[-_]?TOKEN[-_]?SECRET)", re.I)
-SECRET_NAME_REGEX = re.compile(r"(?:SECRET|TOKEN|KEY|PASSWD|PASSWORD|AUTH|PRIVATE|CREDENTIAL|SIGNING)", re.I)
 
 
 def generate_secure_secret(byte_length: int = 32) -> str:
@@ -18,10 +22,17 @@ def fix_env(
     discovered_vars: Dict[str, Any],
     root_dir: str = ".",
     env_file_path: str = ".env",
+    ignores: Optional[List[str]] = None,
+    ignore_config: Optional[IgnoreConfig] = None,
 ) -> Dict[str, Any]:
     """Auto-fix environment configuration issues."""
     full_env_path = os.path.join(root_dir, env_file_path)
     actions = []
+    cfg = ignore_config or load_ignore_config(
+        root_dir=root_dir,
+        env_file_path=env_file_path,
+        cli_ignores=ignores
+    )
 
     # 1. Ensure .env is in .gitignore (create .gitignore if missing)
     gitignore_path = os.path.join(root_dir, ".gitignore")
@@ -88,6 +99,10 @@ def fix_env(
         key = work_line[:eq_idx].strip()
         val = work_line[eq_idx + 1:].strip()
 
+        # If key is ignored by configuration or inline comment, leave untouched
+        if cfg.is_ignored(key):
+            continue
+
         if val.startswith('"') or val.startswith("'"):
             q = val[0]
             close = val.find(q, 1)
@@ -97,11 +112,11 @@ def fix_env(
         needs_new_secret = False
         reason = ""
 
-        if JWT_NAME_REGEX.search(key):
+        if is_jwt_secret_var_name(key):
             if len(val) < 32 or is_placeholder(val):
                 needs_new_secret = True
                 reason = "regenerated 64-char (32-byte) cryptographically secure JWT secret"
-        elif SECRET_NAME_REGEX.search(key):
+        elif is_secret_var_name(key):
             if len(val) < 16 or is_placeholder(val) or val == "":
                 needs_new_secret = True
                 reason = "replaced weak secret with secure 32-byte token"
@@ -131,9 +146,12 @@ def fix_env(
     missing_to_append = []
     for var_name in discovered_vars:
         if var_name not in env_values:
-            if JWT_NAME_REGEX.search(var_name) or SECRET_NAME_REGEX.search(var_name):
+            if is_jwt_secret_var_name(var_name):
                 val_to_set = generate_secure_secret(32)
-                actions.append({"type": "VAR_ADDED", "key": var_name, "message": f"Generated secure secret for {var_name}"})
+                actions.append({"type": "VAR_ADDED", "key": var_name, "message": f"Generated secure JWT secret for {var_name}"})
+            elif is_secret_var_name(var_name):
+                val_to_set = generate_secure_secret(32)
+                actions.append({"type": "VAR_ADDED", "key": var_name, "message": f"Generated secure random secret for {var_name}"})
             else:
                 meta = infer_var_meta(var_name)
                 val_to_set = meta.get("example", "value")

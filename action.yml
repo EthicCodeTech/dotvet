@@ -14,6 +14,10 @@ inputs:
     description: 'Treat warnings as hard failures (exit code 1)'
     required: false
     default: 'true'
+  ignore:
+    description: 'Comma-separated list of variables or rules to ignore (e.g. "VAR_NAME,VAR:RULE")'
+    required: false
+    default: ''
   working-directory:
     description: 'Directory to audit'
     required: false
@@ -30,4 +34,8 @@ runs:
         if [ "${{ inputs.strict }}" = "true" ]; then
           STRICT_FLAG="--strict"
         fi
-        npx --yes dotvet check --env "${{ inputs.env-file }}" --ci $STRICT_FLAG
+        IGNORE_FLAG=""
+        if [ -n "${{ inputs.ignore }}" ]; then
+          IGNORE_FLAG="--ignore ${{ inputs.ignore }}"
+        fi
+        npx --yes dotvet check --env "${{ inputs.env-file }}" --ci $STRICT_FLAG $IGNORE_FLAG

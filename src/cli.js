@@ -23,7 +23,7 @@ const c = {
   bgGreen: '\x1b[42m\x1b[30m'
 };
 
-const VERSION = '0.1.5';
+const VERSION = '0.1.6';
 
 function printHelp() {
   console.log(`
@@ -40,13 +40,14 @@ ${c.bold}COMMANDS:${c.reset}
   ${c.cyan}install-hook${c.reset}  Install Git pre-commit hook to block committing insecure secrets
 
 ${c.bold}OPTIONS:${c.reset}
-  ${c.yellow}--fix${c.reset}           Automatically repair detected issues in local .env
-  ${c.yellow}--env <path>${c.reset}    Path to env file to inspect ${c.dim}(default: .env)${c.reset}
-  ${c.yellow}--strict${c.reset}        Treat warnings as hard failures (exit code 1)
-  ${c.yellow}--ci${c.reset}            CI mode: format errors as GitHub Actions annotations
-  ${c.yellow}--json${c.reset}          Emit results as machine-readable JSON
-  ${c.yellow}-h, --help${c.reset}      Show help and usage guide
-  ${c.yellow}-v, --version${c.reset}   Show dotvet version
+  ${c.yellow}--fix${c.reset}               Automatically repair detected issues in local .env
+  ${c.yellow}--env <path>${c.reset}        Path to env file to inspect ${c.dim}(default: .env)${c.reset}
+  ${c.yellow}--ignore, -i <vars>${c.reset}  Ignore specific variables or rules (comma-separated, .dotvetignore supported)
+  ${c.yellow}--strict${c.reset}            Treat warnings as hard failures (exit code 1)
+  ${c.yellow}--ci${c.reset}                CI mode: format errors as GitHub Actions annotations
+  ${c.yellow}--json${c.reset}              Emit results as machine-readable JSON
+  ${c.yellow}-h, --help${c.reset}          Show help and usage guide
+  ${c.yellow}-v, --version${c.reset}       Show dotvet version
 
 ${c.bold}SECURITY CHECKS:${c.reset}
   ${c.dim}•${c.reset} Banned placeholders (e.g. "changeme", "your-secret-here", "dummy")
@@ -54,6 +55,7 @@ ${c.bold}SECURITY CHECKS:${c.reset}
   ${c.dim}•${c.reset} Weak secrets & low-entropy token detection
   ${c.dim}•${c.reset} Missing & empty variable detection
   ${c.dim}•${c.reset} Git hygiene check (.env in .gitignore)
+  ${c.dim}•${c.reset} Historical git leak reconnaissance
 `);
 }
 
@@ -77,6 +79,18 @@ export function run(args = process.argv.slice(2), rootDir = process.cwd()) {
   const envArgIdx = args.indexOf('--env');
   if (envArgIdx !== -1 && args[envArgIdx + 1]) {
     envFilePath = args[envArgIdx + 1];
+  }
+
+  const ignores = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--ignore' || args[i] === '-i') {
+      if (args[i + 1] && !args[i + 1].startsWith('-')) {
+        ignores.push(args[i + 1]);
+        i++;
+      }
+    } else if (args[i].startsWith('--ignore=')) {
+      ignores.push(args[i].slice(9));
+    }
   }
 
   const subCommand = args[0] && !args[0].startsWith('-') ? args[0] : (wantsFix ? 'fix' : 'check');
@@ -104,7 +118,8 @@ export function run(args = process.argv.slice(2), rootDir = process.cwd()) {
     const fixResult = fixEnv({
       discoveredVars,
       rootDir,
-      envFilePath
+      envFilePath,
+      ignores
     });
 
     if (isJson) {
@@ -182,7 +197,8 @@ export function run(args = process.argv.slice(2), rootDir = process.cwd()) {
     envValues,
     rootDir,
     envFilePath,
-    strict: isStrict
+    strict: isStrict,
+    ignores
   });
 
   if (isJson) {
@@ -228,6 +244,11 @@ export function run(args = process.argv.slice(2), rootDir = process.cwd()) {
         console.log('');
       }
     }
+  }
+
+  // Reporting ignored issues if any
+  if (result.ignored && result.ignored.length > 0) {
+    console.log(`${c.dim}ℹ ${result.ignored.length} check${result.ignored.length === 1 ? '' : 's'} ignored by configuration / .dotvetignore (${Array.from(new Set(result.ignored.map(i => i.name))).join(', ')})${c.reset}\n`);
   }
 
   // Success list

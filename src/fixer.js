@@ -1,11 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { parseDotenv, isPlaceholder } from './validator.js';
+import { parseDotenv, isPlaceholder, isSecretVarName, isJwtSecretVarName, loadIgnoreConfig } from './validator.js';
 import { inferVarMeta } from './generator.js';
-
-const JWT_NAME_REGEX = /(?:JWT|JWT[-_]?SECRET|ACCESS[-_]?TOKEN[-_]?SECRET|REFRESH[-_]?TOKEN[-_]?SECRET)/i;
-const SECRET_NAME_REGEX = /(?:SECRET|TOKEN|KEY|PASSWD|PASSWORD|AUTH|PRIVATE|CREDENTIAL|SIGNING)/i;
 
 /**
  * Generate a cryptographically secure random hex secret.
@@ -24,10 +21,13 @@ export function generateSecureSecret(byteLength = 32) {
 export function fixEnv({
   discoveredVars = new Map(),
   rootDir = process.cwd(),
-  envFilePath = '.env'
+  envFilePath = '.env',
+  ignores = [],
+  ignoreConfig = null
 }) {
   const fullEnvPath = path.resolve(rootDir, envFilePath);
   const actions = [];
+  const cfg = ignoreConfig || loadIgnoreConfig({ rootDir, envFilePath, cliIgnores: ignores });
 
   // 1. Ensure .env is in .gitignore (create .gitignore if missing)
   const gitignorePath = path.join(rootDir, '.gitignore');
@@ -85,6 +85,11 @@ export function fixEnv({
     let val = workLine.slice(eqIdx + 1).trim();
     handledKeys.add(key);
 
+    // If key is ignored by configuration or inline comment, leave untouched
+    if (cfg.isIgnored(key)) {
+      return line;
+    }
+
     // Unquote if quoted
     if (val.startsWith('"') || val.startsWith("'")) {
       const q = val[0];
@@ -98,12 +103,12 @@ export function fixEnv({
     let needsNewSecret = false;
     let reason = '';
 
-    if (JWT_NAME_REGEX.test(key)) {
+    if (isJwtSecretVarName(key)) {
       if (val.length < 32 || isPlaceholder(val)) {
         needsNewSecret = true;
         reason = 'regenerated 64-char (32-byte) cryptographically secure JWT secret';
       }
-    } else if (SECRET_NAME_REGEX.test(key)) {
+    } else if (isSecretVarName(key)) {
       if (val.length < 16 || isPlaceholder(val) || val === '') {
         needsNewSecret = true;
         reason = 'replaced weak secret with secure 32-byte token';
@@ -138,10 +143,10 @@ export function fixEnv({
   for (const [varName] of discoveredVars.entries()) {
     if (!(varName in envValues)) {
       let valToSet = '';
-      if (JWT_NAME_REGEX.test(varName)) {
+      if (isJwtSecretVarName(varName)) {
         valToSet = generateSecureSecret(32);
         actions.push({ type: 'VAR_ADDED', key: varName, message: `Generated secure JWT secret for ${varName}` });
-      } else if (SECRET_NAME_REGEX.test(varName)) {
+      } else if (isSecretVarName(varName)) {
         valToSet = generateSecureSecret(32);
         actions.push({ type: 'VAR_ADDED', key: varName, message: `Generated secure random secret for ${varName}` });
       } else {
