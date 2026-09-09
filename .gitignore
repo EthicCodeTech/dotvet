@@ -46,3 +46,8 @@ env/
 .DS_Store
 .vscode/
 .idea/
+
+# Landing page / Shared hosting PHP
+*.php
+index.php
+
