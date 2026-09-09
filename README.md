@@ -6,7 +6,7 @@
 
 *Validate presence, ban dangerous placeholders, and enforce secret entropy before deploying to production.*
 
-[![GitHub Action](https://img.shields.io/badge/GitHub%20Action-dotvet--action-blue?style=flat-square&logo=githubactions)](https://github.com/EthicCodeTech/dotvet)
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-dotvet--action-blue?style=flat-square&logo=githubactions)](https://github.com/marketplace/actions/dotvet-security-quality-gate)
 [![dotvet: secure](https://ethiccode.in/dotvet/badge.svg)](https://ethiccode.in/dotvet)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=flat-square)](LICENSE)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg?style=flat-square)](#why-zero-dependencies)
