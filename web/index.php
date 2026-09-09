@@ -24,8 +24,11 @@ $current_year = date("Y");
     <meta name="description" content="dotvet scans your codebase to find every environment variable your app needs, checks that your .env file has safe values (no 'changeme', no weak secrets), and blocks broken deployments.">
     <meta name="author" content="<?= htmlspecialchars($maker) ?>">
     
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <!-- Favicons (SVG, PNG, ICO, and Base64 Data URI for instant browser rendering) -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0Ij4KICA8cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxNCIgZmlsbD0iIzBmMTcyYSIvPgogIDx0ZXh0IHg9IjMyIiB5PSI0MiIgZm9udC1mYW1pbHk9Ii1hcHBsZS1zeXN0ZW0sIEJsaW5rTWFjU3lzdGVtRm9udCwgJ1NGIFBybyBEaXNwbGF5JywgJ0ludGVyJywgJ0pldEJyYWlucyBNb25vJywgbW9ub3NwYWNlIiBmb250LXNpemU9IjI1IiBmb250LXdlaWdodD0iOTAwIiBmaWxsPSIjZmZmZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBsZXR0ZXItc3BhY2luZz0iLTEiPgogICAgPHRzcGFuIGZpbGw9IiMwNmI2ZDQiPi48L3RzcGFuPjx0c3BhbiBmaWxsPSIjZmZmZmZmIj52ZXQ8L3RzcGFuPgogIDwvdGV4dD4KPC9zdmc+Cg==">
+    <link rel="apple-touch-icon" href="favicon.png">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -77,8 +80,10 @@ $current_year = date("Y");
         <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <a href="#" class="flex items-center gap-2.5 group">
-                    <!-- .vet Logo Badge -->
-                    <img src="favicon.svg" alt=".vet" class="w-8 h-8 rounded-lg shadow-sm group-hover:opacity-90 transition-opacity">
+                    <!-- .vet Logo Badge (Inline SVG for zero-latency, 100% reliable rendering) -->
+                    <div class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center font-mono font-bold text-xs shadow-sm group-hover:border-cyan-500 transition-colors">
+                        <span class="text-cyan-400">.</span><span class="text-white font-black">vet</span>
+                    </div>
                     <span class="font-extrabold text-xl tracking-tight text-slate-900"><?= htmlspecialchars($app_name) ?></span>
                 </a>
                 <span class="text-slate-300">|</span>
