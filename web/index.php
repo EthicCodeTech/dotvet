@@ -527,20 +527,24 @@ $current_year = date("Y");
 
             <div class="border-subtle rounded-xl p-6 bg-white flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm">
                 <div class="space-y-2">
-                    <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Live Badge Preview:</div>
-                    <div class="inline-flex items-center">
-                        <img src="https://img.shields.io/badge/dotvet-secure-06b6d4?style=flat-square" alt="dotvet: secure" class="h-6">
+                    <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Branded Badge Preview:</div>
+                    <div class="inline-flex items-center gap-3">
+                        <img src="badge.svg" alt="dotvet: secure" class="h-6">
                     </div>
-                    <p class="text-xs text-slate-500">Links directly to your quality gate documentation.</p>
+                    <p class="text-xs text-slate-500">Includes official <span class="font-mono text-cyan-600 font-bold">.vet</span> logo badge.</p>
                 </div>
 
                 <div class="w-full sm:w-2/3 space-y-2">
                     <div class="flex items-center justify-between text-xs font-medium text-slate-700">
                         <span>Copy Markdown for your README.md:</span>
-                        <button onclick="copyCmd('[![dotvet: secure](https://img.shields.io/badge/dotvet-secure-06b6d4?style=flat-square)](https://ethiccode.in/dotvet)', this)" class="text-xs bg-slate-900 hover:bg-slate-800 text-white px-2.5 py-1 rounded font-medium">Copy Badge Markdown</button>
+                        <button onclick="copyCmd('[![dotvet: secure](https://ethiccode.in/dotvet/badge.svg)](https://ethiccode.in/dotvet)', this)" class="text-xs bg-slate-900 hover:bg-slate-800 text-white px-2.5 py-1 rounded font-medium">Copy Badge Markdown</button>
                     </div>
                     <div class="code-dark p-3 rounded font-mono text-[11px] text-cyan-300 overflow-x-auto">
-                        [![dotvet: secure](https://img.shields.io/badge/dotvet-secure-06b6d4?style=flat-square)](https://ethiccode.in/dotvet)
+                        [![dotvet: secure](https://ethiccode.in/dotvet/badge.svg)](https://ethiccode.in/dotvet)
+                    </div>
+                    <div class="text-[11px] text-slate-500 flex items-center justify-between pt-1">
+                        <span>Or via Shields.io with embedded brand:</span>
+                        <button onclick="copyCmd('[![dotvet: secure](https://img.shields.io/badge/dotvet-secure-06b6d4?style=flat-square&labelColor=0f172a&logo=data:image/svg%2Bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiMwZjE3MmEiLz48dGV4dCB4PSIzMiIgeT0iNDMiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMjciIGZvbnQtd2VpZ2h0PSI5MDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjx0c3BhbiBmaWxsPSIjMDZiNmQ0Ij4uPC90c3Bhbj48dHNwYW4gZmlsbD0iI2ZmZmZmZiI+dmV0PC90c3Bhbj48L3RleHQ+PC9zdmc+)](https://ethiccode.in/dotvet)', this)" class="underline hover:text-slate-800">Copy Shields.io Markdown</button>
                     </div>
                 </div>
             </div>

@@ -9,7 +9,7 @@
 [![npm version](https://img.shields.io/npm/v/dotvet.svg?style=flat-square&color=38bdf8)](https://www.npmjs.com/package/dotvet)
 [![PyPI version](https://img.shields.io/pypi/v/dotvet.svg?style=flat-square&color=38bdf8)](https://pypi.org/project/dotvet/)
 [![GitHub Action](https://img.shields.io/badge/GitHub%20Action-dotvet--action-blue?style=flat-square&logo=githubactions)](https://github.com/EthicCodeTech/dotvet)
-[![dotvet: secure](https://img.shields.io/badge/dotvet-secure-06b6d4?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiMwZjE3MmEiLz48dGV4dCB4PSIzMiIgeT0iNDIiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI5MDAiIGZpbGw9IiNmZmZmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjx0c3BhbiBmaWxsPSIjMDZiNmQ0Ij4uPC90c3Bhbj52ZXQ8L3RleHQ+PC9zdmc+)](https://ethiccode.in/dotvet)
+[![dotvet: secure](https://ethiccode.in/dotvet/badge.svg)](https://ethiccode.in/dotvet)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=flat-square)](LICENSE)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg?style=flat-square)](#why-zero-dependencies)
 
@@ -40,7 +40,7 @@ Most environment linters (`dotenv-safe`, `envalid`) only check if a key **exists
 Show your team and users that your repository is protected from insecure environment variables. Add this badge to your README:
 
 ```markdown
-[![dotvet: secure](https://img.shields.io/badge/dotvet-secure-06b6d4?style=flat-square)](https://ethiccode.in/dotvet)
+[![dotvet: secure](https://ethiccode.in/dotvet/badge.svg)](https://ethiccode.in/dotvet)
 ```
 
 ---
