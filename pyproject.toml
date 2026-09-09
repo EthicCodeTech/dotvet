@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dotvet"
-version = "0.1.2"
+version = "0.1.3"
 description = "Zero-config environment variable security scanner and quality gate CLI."
 readme = "README.md"
 authors = [

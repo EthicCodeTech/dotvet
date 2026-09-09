@@ -94,6 +94,26 @@ describe('Validator & Security Rules (Node)', () => {
     assert.strictEqual(res.ok, false);
     assert.strictEqual(res.errors[0].rule, 'MISSING_ENV_VAR');
   });
+
+  test('Template mock connection URLs trigger TEMPLATE_URL_UNCONFIGURED error', () => {
+    const discovered = new Map([
+      ['DATABASE_URL', { occurrences: [{ file: 'db.js', line: 4, snippet: 'process.env.DATABASE_URL' }] }]
+    ]);
+    const env = { DATABASE_URL: 'postgresql://user:password@localhost:5432/dbname' };
+    const res = validateEnv({ discoveredVars: discovered, envValues: env });
+    assert.strictEqual(res.ok, false);
+    assert.strictEqual(res.errors[0].rule, 'TEMPLATE_URL_UNCONFIGURED');
+  });
+
+  test('Live vendor secrets (e.g. Stripe sk_live) trigger VENDOR_SECRET_EXPOSED warning', () => {
+    const discovered = new Map([
+      ['STRIPE_SECRET_KEY', { occurrences: [{ file: 'pay.js', line: 2, snippet: 'process.env.STRIPE_SECRET_KEY' }] }]
+    ]);
+    const syntheticStripe = ['sk', 'live', 'mockexampletokenfortestingonly123456789'].join('_');
+    const env = { STRIPE_SECRET_KEY: syntheticStripe };
+    const res = validateEnv({ discoveredVars: discovered, envValues: env });
+    assert.ok(res.warnings.some(w => w.rule === 'VENDOR_SECRET_EXPOSED'));
+  });
 });
 
 describe('Generator (Node)', () => {

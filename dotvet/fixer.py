@@ -107,8 +107,16 @@ def fix_env(
                 reason = "replaced weak secret with secure 32-byte token"
         elif is_placeholder(val) or val == "":
             meta = infer_var_meta(key)
+            is_conn_url = meta.get("type") == "url" or "URL" in key or "URI" in key
             new_val = meta.get("example", "default_value")
-            actions.append({"type": "VALUE_UPDATED", "key": key, "message": f"Replaced placeholder for {key}"})
+            if is_conn_url:
+                actions.append({
+                    "type": "CONFIG_TEMPLATE_SET",
+                    "key": key,
+                    "message": f'{key}: Inserted connection template ("{new_val}"). ⚠️ MANUAL_CONFIG_REQUIRED: Update with your real database credentials.'
+                })
+            else:
+                actions.append({"type": "VALUE_UPDATED", "key": key, "message": f"Replaced placeholder for {key}"})
             prefix = "export " if is_export else ""
             updated_lines[idx] = f"{prefix}{key}={new_val}"
             continue
@@ -129,7 +137,15 @@ def fix_env(
             else:
                 meta = infer_var_meta(var_name)
                 val_to_set = meta.get("example", "value")
-                actions.append({"type": "VAR_ADDED", "key": var_name, "message": f"Added default value for {var_name}"})
+                is_url = meta.get("type") == "url" or "URL" in var_name or "URI" in var_name
+                if is_url:
+                    actions.append({
+                        "type": "VAR_ADDED",
+                        "key": var_name,
+                        "message": f"Added connection template for {var_name}. ⚠️ MANUAL_CONFIG_REQUIRED"
+                    })
+                else:
+                    actions.append({"type": "VAR_ADDED", "key": var_name, "message": f"Added default value for {var_name}"})
             missing_to_append.append(f"{var_name}={val_to_set}")
 
     if missing_to_append:

@@ -33,6 +33,24 @@ PLACEHOLDER_PATTERNS = [
 SECRET_NAME_REGEX = re.compile(r"(?:SECRET|TOKEN|KEY|PASSWD|PASSWORD|AUTH|PRIVATE|CREDENTIAL|SIGNING)", re.I)
 JWT_NAME_REGEX = re.compile(r"(?:JWT|JWT[-_]?SECRET|ACCESS[-_]?TOKEN[-_]?SECRET|REFRESH[-_]?TOKEN[-_]?SECRET)", re.I)
 
+KNOWN_LEAK_PATTERNS = [
+    {"name": "Stripe Secret Key", "regex": re.compile(r"sk_live_[0-9a-zA-Z]{24,}"), "example": "sk_live_..."},
+    {"name": "Stripe Test Key", "regex": re.compile(r"sk_test_[0-9a-zA-Z]{24,}"), "example": "sk_test_..."},
+    {"name": "AWS Access Key ID", "regex": re.compile(r"(?:A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}"), "example": "AKIA..."},
+    {"name": "GitHub Personal Access Token", "regex": re.compile(r"(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36,}"), "example": "ghp_..."},
+    {"name": "Slack Token", "regex": re.compile(r"xox[baprs]-[0-9a-zA-Z]{10,48}"), "example": "xoxb-..."},
+    {"name": "SendGrid API Key", "regex": re.compile(r"SG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}"), "example": "SG...."},
+]
+
+TEMPLATE_URL_PATTERNS = [
+    re.compile(r"postgresql://(?:user|postgres|username):(?:password|pass|secret)?@localhost(?::\d+)?/(?:dbname|mydb|database|test)", re.I),
+    re.compile(r"mysql://(?:root|user|username):(?:password|pass|secret)?@localhost(?::\d+)?/(?:dbname|mydb|database|test)", re.I),
+    re.compile(r"mongodb://(?:root|user|username):(?:password|pass|secret)?@localhost(?::\d+)?/(?:dbname|mydb|database|test)", re.I),
+    re.compile(r"redis://(?::(?:password|secret)?@)?localhost(?::6379)?(?:/0)?", re.I),
+    re.compile(r"https?://example\.com(?:/.*)?", re.I),
+    re.compile(r"https?://localhost(?::\d+)?/api", re.I),
+]
+
 
 def parse_dotenv(content: str) -> Dict[str, str]:
     """Robust dotenv parser matching Node.js version."""
@@ -216,7 +234,7 @@ def validate_env(
             })
             continue
 
-        # Case C: Placeholder
+        # Case C1: Placeholder
         if is_placeholder(str_val):
             issues.append({
                 "name": var_name,
@@ -227,6 +245,30 @@ def validate_env(
                 "solution": "Replace the placeholder with a secure, generated value.",
             })
             continue
+
+        # Case C2: Template / Mock Connection URLs (e.g. postgresql://user:password@localhost:5432/dbname)
+        if any(pat.search(str_val) for pat in TEMPLATE_URL_PATTERNS):
+            issues.append({
+                "name": var_name,
+                "severity": "ERROR",
+                "rule": "TEMPLATE_URL_UNCONFIGURED",
+                "message": f'Variable {var_name} is set to an unconfigured template URL ("{str_val}"). Connection will fail in real environments!',
+                "occurrences": occurrences,
+                "solution": f"Replace the template connection URL with your actual database/service credentials in {env_file_path}.",
+            })
+            continue
+
+        # Case C3: High-profile vendor secret exposure check (e.g. live AWS/Stripe tokens)
+        leaked_vendor = next((pat for pat in KNOWN_LEAK_PATTERNS if pat["regex"].search(str_val)), None)
+        if leaked_vendor:
+            issues.append({
+                "name": var_name,
+                "severity": "WARN",
+                "rule": "VENDOR_SECRET_EXPOSED",
+                "message": f'Variable {var_name} contains a live {leaked_vendor["name"]} format. Ensure this {env_file_path} file is NEVER committed or made public!',
+                "occurrences": occurrences,
+                "solution": f"Ensure {env_file_path} is added to .gitignore and injected via secure CI secrets manager in production.",
+            })
 
         # Case D: JWT minimum 32 chars
         if JWT_NAME_REGEX.search(var_name):

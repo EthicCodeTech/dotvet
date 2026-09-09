@@ -95,6 +95,33 @@ class TestDotvetValidator(unittest.TestCase):
         self.assertTrue(res["ok"])
         self.assertEqual(len(res["errors"]), 0)
 
+    def test_template_url_unconfigured(self):
+        discovered = {
+            "DATABASE_URL": {
+                "occurrences": [{"file": "db.py", "line": 5, "snippet": "os.getenv('DATABASE_URL')"}]
+            }
+        }
+        res = validate_env(
+            discovered_vars=discovered,
+            env_values={"DATABASE_URL": "postgresql://user:password@localhost:5432/dbname"},
+        )
+        self.assertFalse(res["ok"])
+        self.assertEqual(res["errors"][0]["rule"], "TEMPLATE_URL_UNCONFIGURED")
+
+    def test_vendor_secret_exposed(self):
+        discovered = {
+            "STRIPE_KEY": {
+                "occurrences": [{"file": "pay.py", "line": 2, "snippet": "os.getenv('STRIPE_KEY')"}]
+            }
+        }
+        synthetic_stripe = "_".join(["sk", "live", "mockexampletokenfortestingonly123456789"])
+        res = validate_env(
+            discovered_vars=discovered,
+            env_values={"STRIPE_KEY": synthetic_stripe},
+        )
+        self.assertTrue(any(w["rule"] == "VENDOR_SECRET_EXPOSED" for w in res["warnings"]))
+        self.assertEqual(len(res["errors"]), 0)
+
 
 class TestDotvetGenerator(unittest.TestCase):
     def test_infer_var_meta(self):

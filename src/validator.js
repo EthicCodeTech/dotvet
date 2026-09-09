@@ -31,6 +31,26 @@ const PLACEHOLDER_PATTERNS = [
 const SECRET_NAME_REGEX = /(?:SECRET|TOKEN|KEY|PASSWD|PASSWORD|AUTH|PRIVATE|CREDENTIAL|SIGNING)/i;
 const JWT_NAME_REGEX = /(?:JWT|JWT[-_]?SECRET|ACCESS[-_]?TOKEN[-_]?SECRET|REFRESH[-_]?TOKEN[-_]?SECRET)/i;
 
+// High-profile vendor token formats that should never be in placeholder or unencrypted code
+const KNOWN_LEAK_PATTERNS = [
+  { name: 'Stripe Secret Key', regex: /sk_live_[0-9a-zA-Z]{24,}/, example: 'sk_live_...' },
+  { name: 'Stripe Test Key', regex: /sk_test_[0-9a-zA-Z]{24,}/, example: 'sk_test_...' },
+  { name: 'AWS Access Key ID', regex: /(?:A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}/, example: 'AKIA...' },
+  { name: 'GitHub Personal Access Token', regex: /(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36,}/, example: 'ghp_...' },
+  { name: 'Slack Token', regex: /xox[baprs]-[0-9a-zA-Z]{10,48}/, example: 'xoxb-...' },
+  { name: 'SendGrid API Key', regex: /SG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}/, example: 'SG....' }
+];
+
+// Placeholder or mock database / service connection URLs
+const TEMPLATE_URL_PATTERNS = [
+  /postgresql:\/\/(?:user|postgres|username):(?:password|pass|secret)?@localhost(?::\d+)?\/(?:dbname|mydb|database|test)/i,
+  /mysql:\/\/(?:root|user|username):(?:password|pass|secret)?@localhost(?::\d+)?\/(?:dbname|mydb|database|test)/i,
+  /mongodb:\/\/(?:root|user|username):(?:password|pass|secret)?@localhost(?::\d+)?\/(?:dbname|mydb|database|test)/i,
+  /redis:\/\/(?::(?:password|secret)?@)?localhost(?::6379)?(?:\/0)?/i,
+  /https?:\/\/example\.com(?:\/.*)?/i,
+  /https?:\/\/localhost(?::\d+)?\/api/i
+];
+
 /**
  * Robust dotenv parser with quote and comment support.
  */
@@ -245,7 +265,7 @@ export function validateEnv({
       continue;
     }
 
-    // Case C: Placeholder detection
+    // Case C1: Placeholder detection
     if (isPlaceholder(strVal)) {
       issues.push({
         name: varName,
@@ -256,6 +276,32 @@ export function validateEnv({
         solution: `Replace the placeholder with a secure, generated value.`
       });
       continue;
+    }
+
+    // Case C2: Template / Mock Connection URLs (e.g. postgresql://user:password@localhost:5432/dbname)
+    if (TEMPLATE_URL_PATTERNS.some(pat => pat.test(strVal))) {
+      issues.push({
+        name: varName,
+        severity: 'ERROR',
+        rule: 'TEMPLATE_URL_UNCONFIGURED',
+        message: `Variable ${varName} is set to an unconfigured template URL ("${strVal}"). Connection will fail in real environments!`,
+        occurrences,
+        solution: `Replace the template connection URL with your actual database/service credentials in ${envFilePath}.`
+      });
+      continue;
+    }
+
+    // Case C3: High-profile vendor secret exposure check (e.g. live AWS/Stripe tokens)
+    const leakedVendor = KNOWN_LEAK_PATTERNS.find(pat => pat.regex.test(strVal));
+    if (leakedVendor) {
+      issues.push({
+        name: varName,
+        severity: 'WARN',
+        rule: 'VENDOR_SECRET_EXPOSED',
+        message: `Variable ${varName} contains a live ${leakedVendor.name} format. Ensure this ${envFilePath} file is NEVER committed or made public!`,
+        occurrences,
+        solution: `Ensure ${envFilePath} is added to .gitignore and injected via secure CI secrets manager in production.`
+      });
     }
 
     // Case D: JWT secret length enforcement (>= 32 characters)

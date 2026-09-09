@@ -110,8 +110,17 @@ export function fixEnv({
       }
     } else if (isPlaceholder(val) || val === '') {
       const meta = inferVarMeta(key);
+      const isConnectionUrl = meta.type === 'url' || key.includes('URL') || key.includes('URI');
       const newVal = meta.example || 'default_value';
-      actions.push({ type: 'VALUE_UPDATED', key, message: `Replaced placeholder for ${key}` });
+      if (isConnectionUrl) {
+        actions.push({ 
+          type: 'CONFIG_TEMPLATE_SET', 
+          key, 
+          message: `${key}: Inserted connection template ("${newVal}"). ⚠️ MANUAL_CONFIG_REQUIRED: Update with your real database credentials.` 
+        });
+      } else {
+        actions.push({ type: 'VALUE_UPDATED', key, message: `Replaced placeholder for ${key}` });
+      }
       return `${isExport ? 'export ' : ''}${key}=${newVal}`;
     }
 
@@ -138,7 +147,16 @@ export function fixEnv({
       } else {
         const meta = inferVarMeta(varName);
         valToSet = meta.example || 'value';
-        actions.push({ type: 'VAR_ADDED', key: varName, message: `Added default value for ${varName}` });
+        const isUrl = meta.type === 'url' || varName.includes('URL') || varName.includes('URI');
+        if (isUrl) {
+          actions.push({ 
+            type: 'VAR_ADDED', 
+            key: varName, 
+            message: `Added connection template for ${varName}. ⚠️ MANUAL_CONFIG_REQUIRED` 
+          });
+        } else {
+          actions.push({ type: 'VAR_ADDED', key: varName, message: `Added default value for ${varName}` });
+        }
       }
       missingToAppend.push(`${varName}=${valToSet}`);
     }
