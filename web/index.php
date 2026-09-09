@@ -11,7 +11,7 @@ $maker = "EthicCode Technologies";
 $site_url = "https://ethiccode.in/dotvet";
 $pypi_url = "https://pypi.org/project/dotvet/";
 $npm_url = "https://www.npmjs.com/package/dotvet";
-$github_url = "https://github.com/EthicCodes/dotvet";
+$github_url = "https://github.com/EthicCodeTech/dotvet";
 $contact_email = "hi@ethiccode.in";
 $current_year = date("Y");
 ?>
@@ -294,7 +294,7 @@ $current_year = date("Y");
                             <td class="py-3 px-4 text-center text-slate-400">❌</td>
                         </tr>
                         <tr class="hover:bg-slate-50/50">
-                            <td class="py-3 px-4 font-medium text-slate-900">Native GitHub Action (<code class="bg-slate-100 px-1 rounded font-mono">uses: EthicCodes/dotvet@main</code>)</td>
+                            <td class="py-3 px-4 font-medium text-slate-900">Native GitHub Action (<code class="bg-slate-100 px-1 rounded font-mono">uses: EthicCodeTech/dotvet@main</code>)</td>
                             <td class="py-3 px-4 text-center font-bold text-emerald-700 bg-cyan-50/30 border-x border-cyan-100">✅ Yes</td>
                             <td class="py-3 px-4 text-center text-slate-400">❌</td>
                             <td class="py-3 px-4 text-center text-yellow-600">⚠️</td>
@@ -509,7 +509,7 @@ $current_year = date("Y");
                 &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-purple-400">steps:</span><br>
                 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-cyan-400">- uses:</span> actions/checkout@v4<br>
                 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-cyan-400">- name:</span> Verify Environment Variable Security<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-cyan-400">uses:</span> <span class="text-yellow-300">EthicCodes/dotvet@main</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-cyan-400">uses:</span> <span class="text-yellow-300">EthicCodeTech/dotvet@main</span><br>
                 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-cyan-400">with:</span><br>
                 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-slate-300">strict:</span> <span class="text-emerald-400">'true'</span>
             </div>

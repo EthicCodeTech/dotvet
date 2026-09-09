@@ -12,7 +12,7 @@ setup(
     author="EthicCode Technologies",
     author_email="hi@ethiccode.in",
     license="MIT",
-    url="https://github.com/EthicCodes/dotvet",
+    url="https://github.com/EthicCodeTech/dotvet",
     packages=find_packages(include=["dotvet", "dotvet.*"]),
     python_requires=">=3.8",
     entry_points={

@@ -44,7 +44,8 @@ dotvet = "dotvet.cli:main"
 
 [project.urls]
 Homepage = "https://ethiccode.in/dotvet"
-Issues = "https://github.com/EthicCodes/dotvet/issues"
+Repository = "https://github.com/EthicCodeTech/dotvet"
+Issues = "https://github.com/EthicCodeTech/dotvet/issues"
 
 [tool.setuptools.packages.find]
 include = ["dotvet*"]

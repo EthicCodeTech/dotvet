@@ -36,10 +36,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/EthicCodes/dotvet.git"
+    "url": "git+https://github.com/EthicCodeTech/dotvet.git"
   },
   "bugs": {
-    "url": "https://github.com/EthicCodes/dotvet/issues"
+    "url": "https://github.com/EthicCodeTech/dotvet/issues"
   },
   "homepage": "https://ethiccode.in/dotvet"
 }
