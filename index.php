@@ -114,11 +114,13 @@ $current_year = date("Y");
                 <span class="text-xs text-slate-500 font-medium">by <a href="https://ethiccode.in" target="_blank" class="text-slate-700 hover:text-blue-600 underline font-semibold"><?= htmlspecialchars($maker) ?></a></span>
             </div>
 
-            <nav class="hidden sm:flex items-center gap-6 text-sm font-medium text-slate-600">
-                <a href="#what-it-does" class="hover:text-slate-900">What It Does</a>
+            <nav class="hidden sm:flex items-center gap-5 text-sm font-medium text-slate-600">
+                <a href="#what-it-does" class="hover:text-slate-900">Why dotvet</a>
+                <a href="#comparison" class="hover:text-slate-900">Comparison</a>
                 <a href="#how-it-works" class="hover:text-slate-900">How It Works</a>
-                <a href="#quickstart" class="hover:text-slate-900">Quickstart</a>
+                <a href="#env-contract" class="hover:text-slate-900">Env Contract</a>
                 <a href="#commands" class="hover:text-slate-900">Commands</a>
+                <a href="#badge" class="hover:text-slate-900">Badge</a>
                 <a href="<?= htmlspecialchars($github_url) ?>" target="_blank" class="text-slate-800 hover:text-blue-600 font-semibold">GitHub &rarr;</a>
             </nav>
         </div>
@@ -227,6 +229,89 @@ $current_year = date("Y");
             </div>
         </section>
 
+        <!-- COMPARISON MATRIX: WHY DOTVET WINS -->
+        <section id="comparison" class="space-y-6 pt-6 border-t border-slate-200">
+            <div>
+                <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-xs font-semibold mb-2">
+                    <span>⚡ Feature Comparison</span>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900">How dotvet Compares</h2>
+                <p class="text-slate-600 text-sm mt-1">Why existing linters like <code class="text-slate-800 font-mono text-xs">dotenv-safe</code> leave your production apps vulnerable:</p>
+            </div>
+
+            <div class="border-subtle rounded-xl overflow-x-auto bg-white shadow-sm">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-700 font-semibold">
+                            <th class="py-3.5 px-4">Capability</th>
+                            <th class="py-3.5 px-4 text-center bg-cyan-50/70 text-cyan-900 font-bold border-x border-cyan-100">dotvet 🛡️</th>
+                            <th class="py-3.5 px-4 text-center">dotenv-safe</th>
+                            <th class="py-3.5 px-4 text-center">dotenvx</th>
+                            <th class="py-3.5 px-4 text-center">gitleaks / trufflehog</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-slate-600">
+                        <tr class="hover:bg-slate-50/50">
+                            <td class="py-3 px-4 font-medium text-slate-900">Code-aware Scanning (auto-derives required vars from code)</td>
+                            <td class="py-3 px-4 text-center font-bold text-cyan-800 bg-cyan-50/30 border-x border-cyan-100">✅ Zero-config</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌ (Manual .env.example)</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50">
+                            <td class="py-3 px-4 font-medium text-slate-900">Bans Dummy Placeholders (<code class="bg-slate-100 px-1 rounded font-mono">changeme</code>, <code class="bg-slate-100 px-1 rounded font-mono">dummy</code>, <code class="bg-slate-100 px-1 rounded font-mono">test</code>)</td>
+                            <td class="py-3 px-4 text-center font-bold text-emerald-700 bg-cyan-50/30 border-x border-cyan-100">✅ Yes</td>
+                            <td class="py-3 px-4 text-center text-red-600 font-medium">❌ (Passes them)</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50">
+                            <td class="py-3 px-4 font-medium text-slate-900">Enforces JWT Minimum Strength (≥ 32 chars / 256-bit)</td>
+                            <td class="py-3 px-4 text-center font-bold text-emerald-700 bg-cyan-50/30 border-x border-cyan-100">✅ Hard Fail</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50">
+                            <td class="py-3 px-4 font-medium text-slate-900">Entropy & Repeating Pattern Detector (<code class="bg-slate-100 px-1 rounded font-mono">abcdefgh*4</code>)</td>
+                            <td class="py-3 px-4 text-center font-bold text-emerald-700 bg-cyan-50/30 border-x border-cyan-100">✅ Yes</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                            <td class="py-3 px-4 text-center text-emerald-700 font-medium">✅ (Git commits only)</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50">
+                            <td class="py-3 px-4 font-medium text-slate-900">Auto-Heals Secrets & .gitignore (<code class="bg-slate-100 px-1 rounded font-mono">dotvet fix</code>)</td>
+                            <td class="py-3 px-4 text-center font-bold text-emerald-700 bg-cyan-50/30 border-x border-cyan-100">✅ Yes</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50">
+                            <td class="py-3 px-4 font-medium text-slate-900">Generates Team Env Contract (<code class="bg-slate-100 px-1 rounded font-mono">.env.schema.json</code>)</td>
+                            <td class="py-3 px-4 text-center font-bold text-emerald-700 bg-cyan-50/30 border-x border-cyan-100">✅ Yes</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50">
+                            <td class="py-3 px-4 font-medium text-slate-900">Native GitHub Action (<code class="bg-slate-100 px-1 rounded font-mono">uses: EthicCodes/dotvet@main</code>)</td>
+                            <td class="py-3 px-4 text-center font-bold text-emerald-700 bg-cyan-50/30 border-x border-cyan-100">✅ Yes</td>
+                            <td class="py-3 px-4 text-center text-slate-400">❌</td>
+                            <td class="py-3 px-4 text-center text-yellow-600">⚠️</td>
+                            <td class="py-3 px-4 text-center text-yellow-600">⚠️</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/50">
+                            <td class="py-3 px-4 font-medium text-slate-900">Runtime Dependencies</td>
+                            <td class="py-3 px-4 text-center font-extrabold text-cyan-800 bg-cyan-50/30 border-x border-cyan-100">0 (Safe)</td>
+                            <td class="py-3 px-4 text-center text-slate-500">Multiple</td>
+                            <td class="py-3 px-4 text-center text-slate-500">Multiple</td>
+                            <td class="py-3 px-4 text-center text-slate-500">Go Binary</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <!-- HOW IT WORKS IN 3 SIMPLE STEPS -->
         <section id="how-it-works" class="space-y-6 pt-6 border-t border-slate-200">
             <div>
@@ -319,6 +404,48 @@ $current_year = date("Y");
             </div>
         </section>
 
+        <!-- YOUR TEAM'S ENV CONTRACT -->
+        <section id="env-contract" class="space-y-6 pt-6 border-t border-slate-200">
+            <div>
+                <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-purple-800 text-xs font-semibold mb-2">
+                    <span>📜 Developer Onboarding</span>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900">Your Team's Env Contract (.env.schema.json)</h2>
+                <p class="text-slate-600 text-sm mt-1">Never share unencrypted, broken .env files over Slack or DM again.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="border-subtle rounded-xl p-6 bg-white space-y-4">
+                    <h3 class="font-bold text-slate-900 text-base">Generate Once, Enforce Everywhere</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Running <code class="bg-slate-100 text-blue-700 px-1 py-0.5 rounded font-mono font-bold">dotvet generate</code> derives your application's complete environment schema:
+                    </p>
+                    <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside">
+                        <li><strong>.env.example:</strong> Clean documentation of all required variables without exposing sensitive values.</li>
+                        <li><strong>.env.schema.json:</strong> Machine-readable JSON Schema defining types, constraints, and descriptions for your team.</li>
+                    </ul>
+                    <div class="code-dark p-3 rounded-lg flex items-center justify-between font-mono text-xs">
+                        <span class="text-cyan-300">npx dotvet generate</span>
+                        <button onclick="copyCmd('npx dotvet generate', this)" class="text-[11px] bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-slate-300">Copy</button>
+                    </div>
+                </div>
+
+                <div class="border-subtle rounded-xl p-6 bg-slate-50 space-y-3">
+                    <div class="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Sample .env.schema.json:</div>
+                    <div class="code-dark p-3 rounded font-mono text-[11px] text-slate-300 overflow-x-auto leading-relaxed">
+{<br>
+&nbsp;&nbsp;<span class="text-cyan-400">"$schema"</span>: "http://json-schema.org/draft-07/schema#",<br>
+&nbsp;&nbsp;<span class="text-cyan-400">"required"</span>: ["DATABASE_URL", "JWT_SECRET"],<br>
+&nbsp;&nbsp;<span class="text-cyan-400">"properties"</span>: {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-cyan-400">"JWT_SECRET"</span>: { <span class="text-yellow-300">"minLength"</span>: 32, <span class="text-yellow-300">"type"</span>: "string" },<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-cyan-400">"PORT"</span>: { <span class="text-yellow-300">"default"</span>: "3000", <span class="text-yellow-300">"type"</span>: "integer" }<br>
+&nbsp;&nbsp;}<br>
+}
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- COMMAND CHEAT SHEET -->
         <section id="commands" class="space-y-4 pt-6 border-t border-slate-200">
             <div>
@@ -361,20 +488,61 @@ $current_year = date("Y");
             </div>
         </section>
 
-        <!-- CI/CD INTEGRATION -->
-        <section class="space-y-4 pt-6 border-t border-slate-200">
+        <!-- CI/CD INTEGRATION: GITHUB ACTION -->
+        <section id="github-action" class="space-y-4 pt-6 border-t border-slate-200">
             <div>
+                <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold mb-2">
+                    <span>🤖 CI / CD Quality Gate</span>
+                </div>
                 <h2 class="text-2xl font-bold text-slate-900">Add to GitHub Actions in 3 Lines</h2>
-                <p class="text-slate-600 text-sm mt-1">Block broken pull requests before they reach your main branch:</p>
+                <p class="text-slate-600 text-sm mt-1">Block broken pull requests before they reach production with the official GitHub Action:</p>
             </div>
 
-            <div class="code-dark p-5 rounded-xl text-xs overflow-x-auto font-mono leading-relaxed">
-                <span class="text-slate-500"># .github/workflows/check.yml</span><br>
-                <span class="text-cyan-400">- name:</span> Audit Environment Variables<br>
-                &nbsp;&nbsp;<span class="text-cyan-400">run:</span> npx dotvet check --ci --strict<br>
-                &nbsp;&nbsp;<span class="text-cyan-400">env:</span><br>
-                &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-slate-400">JWT_SECRET:</span> ${{ secrets.CI_JWT_SECRET }}<br>
-                &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-slate-400">DATABASE_URL:</span> ${{ secrets.CI_DATABASE_URL }}
+            <div class="code-dark p-5 rounded-xl text-xs overflow-x-auto font-mono leading-relaxed space-y-1">
+                <span class="text-slate-500"># .github/workflows/security.yml</span><br>
+                <span class="text-purple-400">name:</span> <span class="text-slate-200">Env Security Gate</span><br>
+                <span class="text-purple-400">on:</span> <span class="text-slate-200">[push, pull_request]</span><br>
+                <br>
+                <span class="text-purple-400">jobs:</span><br>
+                &nbsp;&nbsp;<span class="text-purple-400">audit:</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-purple-400">runs-on:</span> <span class="text-slate-200">ubuntu-latest</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-purple-400">steps:</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-cyan-400">- uses:</span> actions/checkout@v4<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-cyan-400">- name:</span> Verify Environment Variable Security<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-cyan-400">uses:</span> <span class="text-yellow-300">EthicCodes/dotvet@main</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-cyan-400">with:</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-slate-300">strict:</span> <span class="text-emerald-400">'true'</span>
+            </div>
+        </section>
+
+        <!-- REPOSITORY BADGE -->
+        <section id="badge" class="space-y-4 pt-6 border-t border-slate-200">
+            <div>
+                <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold mb-2">
+                    <span>🛡️ Repository Shield</span>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900">Show Your Repo Is Protected</h2>
+                <p class="text-slate-600 text-sm mt-1">Signal to your team and users that your project enforces environment security:</p>
+            </div>
+
+            <div class="border-subtle rounded-xl p-6 bg-white flex flex-col sm:flex-row items-center justify-between gap-6 shadow-sm">
+                <div class="space-y-2">
+                    <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Live Badge Preview:</div>
+                    <div class="inline-flex items-center">
+                        <img src="https://img.shields.io/badge/dotvet-secure-06b6d4?style=flat-square" alt="dotvet: secure" class="h-6">
+                    </div>
+                    <p class="text-xs text-slate-500">Links directly to your quality gate documentation.</p>
+                </div>
+
+                <div class="w-full sm:w-2/3 space-y-2">
+                    <div class="flex items-center justify-between text-xs font-medium text-slate-700">
+                        <span>Copy Markdown for your README.md:</span>
+                        <button onclick="copyCmd('[![dotvet: secure](https://img.shields.io/badge/dotvet-secure-06b6d4?style=flat-square)](https://ethiccode.in/dotvet)', this)" class="text-xs bg-slate-900 hover:bg-slate-800 text-white px-2.5 py-1 rounded font-medium">Copy Badge Markdown</button>
+                    </div>
+                    <div class="code-dark p-3 rounded font-mono text-[11px] text-cyan-300 overflow-x-auto">
+                        [![dotvet: secure](https://img.shields.io/badge/dotvet-secure-06b6d4?style=flat-square)](https://ethiccode.in/dotvet)
+                    </div>
+                </div>
             </div>
         </section>
 

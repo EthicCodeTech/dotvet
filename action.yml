@@ -1,0 +1,33 @@
+name: 'dotvet Security Quality Gate'
+description: 'Zero-config environment variable security scanner & CI quality gate. Enforces real secrets and blocks insecure builds.'
+author: 'EthicCode Technologies'
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  env-file:
+    description: 'Path to .env file to inspect'
+    required: false
+    default: '.env'
+  strict:
+    description: 'Treat warnings as hard failures (exit code 1)'
+    required: false
+    default: 'true'
+  working-directory:
+    description: 'Directory to audit'
+    required: false
+    default: '.'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Run dotvet quality gate
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        STRICT_FLAG=""
+        if [ "${{ inputs.strict }}" = "true" ]; then
+          STRICT_FLAG="--strict"
+        fi
+        npx --yes dotvet check --env "${{ inputs.env-file }}" --ci $STRICT_FLAG

@@ -8,6 +8,8 @@
 
 [![npm version](https://img.shields.io/npm/v/dotvet.svg?style=flat-square&color=38bdf8)](https://www.npmjs.com/package/dotvet)
 [![PyPI version](https://img.shields.io/pypi/v/dotvet.svg?style=flat-square&color=38bdf8)](https://pypi.org/project/dotvet/)
+[![GitHub Action](https://img.shields.io/badge/GitHub%20Action-dotvet--action-blue?style=flat-square&logo=githubactions)](https://github.com/EthicCodes/dotvet)
+[![dotvet: secure](https://img.shields.io/badge/dotvet-secure-06b6d4?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiMwZjE3MmEiLz48dGV4dCB4PSIzMiIgeT0iNDIiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMjUiIGZvbnQtd2VpZ2h0PSI5MDAiIGZpbGw9IiNmZmZmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPjx0c3BhbiBmaWxsPSIjMDZiNmQ0Ij4uPC90c3Bhbj52ZXQ8L3RleHQ+PC9zdmc+)](https://ethiccode.in/dotvet)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=flat-square)](LICENSE)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg?style=flat-square)](#why-zero-dependencies)
 
@@ -15,25 +17,31 @@
 
 ---
 
-## ⚡ The Problem: `dotenv-safe` Is Not Safe
+## ⚡ Why dotvet? (The Comparison)
 
-Most tools (`dotenv-safe`, `envalid`, `zod`) only verify that a variable **exists**:
+Most environment linters (`dotenv-safe`, `envalid`) only check if a key **exists**. They don't care if its value is `"changeme"` or a 6-character toy secret that can be cracked in 2 seconds.
 
-```env
-# Passes dotenv-safe with flying colors:
-JWT_SECRET=changeme
-API_KEY=your-secret-here
+| Capability | `dotvet` 🛡️ | `dotenv-safe` | `dotenvx` | `gitleaks` / `trufflehog` |
+| :--- | :---: | :---: | :---: | :---: |
+| **Code-aware Scanning** (derives required vars from AST/regex) | ✅ **Zero-config** | ❌ (Manual `.env.example`) | ❌ | ❌ |
+| **Bans Dummy Placeholders** (`changeme`, `dummy`, `test`) | ✅ **Yes** | ❌ (Passes them) | ❌ | ❌ |
+| **Enforces JWT Minimum Strength** (>= 32 chars / 256-bit) | ✅ **Hard Fail** | ❌ | ❌ | ❌ |
+| **Detects Unconfigured Template URLs** (`postgres://localhost...`) | ✅ **Hard Fail** | ❌ | ❌ | ❌ |
+| **Entropy & Repeating Pattern Detector** (`abcdefgh`*4) | ✅ **Yes** | ❌ | ❌ | ✅ (Git history only) |
+| **Auto-Heals Secrets & `.gitignore`** (`dotvet fix`) | ✅ **Yes** | ❌ | ❌ | ❌ |
+| **Generates Machine-Readable `.env.schema.json` Contract** | ✅ **Yes** | ❌ | ❌ | ❌ |
+| **Native GitHub Action** (`uses: EthicCodes/dotvet@v1`) | ✅ **Yes** | ❌ | ⚠️ | ⚠️ |
+| **Runtime Dependencies** | **0** | Multiple | Multiple | Go binary |
+
+---
+
+## 🛡️ Repository Security Badge
+
+Show your team and users that your repository is protected from insecure environment variables. Add this badge to your README:
+
+```markdown
+[![dotvet: secure](https://img.shields.io/badge/dotvet-secure-06b6d4?style=flat-square)](https://ethiccode.in/dotvet)
 ```
-
-In production, **a weak secret is worse than a missing secret**. Undersized JWT secrets (< 32 characters) allow attackers to forge tokens with HS256 brute-force dictionaries in seconds.
-
-**`dotvet` does what other linters don't:**
-1. 🔍 **Zero config**: Auto-scans your codebase (`process.env.X`, `os.environ.get('X')`, `os.getenv('X')`, `import.meta.env.X`, etc.) to find every environment variable you actually reference.
-2. 🚫 **Placeholder eradication**: Detects and bans dummy defaults like `"changeme"`, `"your-secret-here"`, `"dummy"`, `"admin"`, or `"123456"`.
-3. 🔐 **JWT-aware strictness**: Any secret matching `JWT` or `JWT_SECRET` must be at least **32 characters (256-bit)** or `dotvet` halts the build.
-4. 🎲 **Entropy calculation**: Audits sensitive keys using Shannon entropy to catch repetitive and trivial strings.
-5. 📜 **Schema generation**: Generates `.env.schema.json` and `.env.example` in a single command.
-6. 🌐 **Dual-ecosystem & zero dependencies**: Works natively across Node.js (`npx dotvet`) and Python (`pip install dotvet`) with **zero third-party dependencies**.
 
 ---
 
@@ -58,6 +66,23 @@ yarn add -D dotvet
 pip install dotvet
 dotvet
 ```
+
+---
+
+## 📜 Your Team's Env Contract (`.env.schema.json`)
+
+Onboarding new engineers shouldn't require sending unencrypted `.env` files over Slack.
+
+Run `dotvet generate` once:
+```bash
+npx dotvet generate
+```
+
+This derives your project's canonical environment contract:
+1. **`.env.example`**: Clean documentation of all required variables without exposing production secrets.
+2. **`.env.schema.json`**: Strict JSON Schema defining types (`integer`, `string`, `secret`), constraints, and descriptions.
+
+Commit `.env.schema.json` to Git. Whenever a teammate pulls the repository or runs `dotvet check`, they immediately know which variables their branch depends on and why.
 
 ---
 
@@ -121,14 +146,6 @@ dotvet scan — Discovered 3 environment variables:
 
 ---
 
-### 3. `dotvet generate`
-Automatically generates a `.env.example` file and `.env.schema.json` contract based on variables discovered across your codebase:
-```bash
-npx dotvet generate
-```
-
----
-
 ## 🛡️ Security Rules
 
 | Rule | Severity | Description |
@@ -155,29 +172,25 @@ npx dotvet generate
 
 ---
 
-## 🤖 CI / CD Integration (GitHub Actions)
+## 🤖 CI / CD Integration: GitHub Action
 
-Add `dotvet` as a gate in your pull request workflow:
+The fastest way to guard pull requests in GitHub Actions is the official **`dotvet` action** (3 lines):
 
 ```yaml
-name: Security & Env Quality Gate
+name: Env Security Gate
 
 on: [push, pull_request]
 
 jobs:
-  env-audit:
+  audit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Verify Environment Variable Security
+        uses: EthicCodes/dotvet@main
         with:
-          node-version: 20
-      
-      # Runs zero-config audit; fails PR if secrets are weak, missing, or placeholders
-      - name: Run dotvet
-        run: npx dotvet --ci --strict
+          strict: 'true'
         env:
-          # Provide your mock test secrets
           JWT_SECRET: "ci_valid_32_character_long_secret_key_12345"
           DATABASE_URL: "postgresql://ci:ci@localhost:5432/test"
           PORT: "3000"
