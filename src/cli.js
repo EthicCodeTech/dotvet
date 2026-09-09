@@ -23,7 +23,7 @@ const c = {
   bgGreen: '\x1b[42m\x1b[30m'
 };
 
-const VERSION = '0.1.6';
+const VERSION = '0.1.7';
 
 function printHelp() {
   console.log(`

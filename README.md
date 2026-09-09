@@ -98,7 +98,7 @@ dotvet check --env .env.production
 
 **Example Output:**
 ```
-dotvet v0.1.1 — Auditing environment variables in /projects/my-app
+dotvet v0.1.7 — Auditing environment variables in /projects/my-app
 Environment file: .env (found) | Found 4 vars in code
 
  WARN  .env (GITIGNORE_MISSING)

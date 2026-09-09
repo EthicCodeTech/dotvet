@@ -1,6 +1,6 @@
 """dotvet: Zero-Config Environment Variable Security Scanner & Quality Gate."""
 
-__version__ = "0.1.6"
+__version__ = "0.1.7"
 
 from .scanner import scan_codebase, scan_file, find_files
 from .validator import (
