@@ -6,10 +6,6 @@
 
 *Validate presence, ban dangerous placeholders, and enforce secret entropy before deploying to production.*
 
-[![npm version](https://img.shields.io/npm/v/dotvet.svg?style=flat-square&color=38bdf8)](https://www.npmjs.com/package/dotvet)
-[![npm downloads](https://img.shields.io/npm/dm/dotvet.svg?style=flat-square&color=38bdf8)](https://www.npmjs.com/package/dotvet)
-[![PyPI version](https://img.shields.io/pypi/v/dotvet.svg?style=flat-square&color=38bdf8)](https://pypi.org/project/dotvet/)
-[![PyPI downloads](https://img.shields.io/pypi/dm/dotvet.svg?style=flat-square&color=38bdf8)](https://pypi.org/project/dotvet/)
 [![GitHub Action](https://img.shields.io/badge/GitHub%20Action-dotvet--action-blue?style=flat-square&logo=githubactions)](https://github.com/EthicCodeTech/dotvet)
 [![dotvet: secure](https://ethiccode.in/dotvet/badge.svg)](https://ethiccode.in/dotvet)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=flat-square)](LICENSE)
