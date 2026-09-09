@@ -1,0 +1,45 @@
+{
+  "name": "dotvet",
+  "version": "0.1.0",
+  "description": "Zero-config environment variable security scanner and quality gate CLI. Validates presence, bans placeholders, and enforces secret strength (e.g. JWT >= 32 chars).",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "dotvet": "bin/dotvet.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "node --test tests/node/**/*.test.js",
+    "lint": "node --check bin/dotvet.js src/**/*.js"
+  },
+  "keywords": [
+    "env",
+    "dotenv",
+    "security",
+    "jwt",
+    "secrets",
+    "validation",
+    "linter",
+    "ci",
+    "cli",
+    "devsecops"
+  ],
+  "author": "EthicCode Technologies <contact@ethiccode.in>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EthicCodes/dotvet.git"
+  },
+  "bugs": {
+    "url": "https://github.com/EthicCodes/dotvet/issues"
+  },
+  "homepage": "https://ethiccode.in/dotvet"
+}

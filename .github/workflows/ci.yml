@@ -1,0 +1,29 @@
+name: dotvet Security & Quality Gate
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  env-security-check:
+    name: Audit Environment & Secrets Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run dotvet Security Gate (Node)
+        run: npx dotvet check --ci --strict
+        env:
+          # In CI, supply your test/mock secrets to verify that required env vars exist and are non-trivial
+          PORT: '8080'
+          DATABASE_URL: 'postgresql://ci_runner:ci_password@localhost:5432/test_db'
+          JWT_SECRET: 'ci_random_jwt_signing_key_at_least_32_characters_long_12345'
+          API_KEY: 'ci_valid_entropy_api_key_for_testing_purposes_98765'

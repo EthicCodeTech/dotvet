@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dotvet"
+version = "0.1.0"
+description = "Zero-config environment variable security scanner and quality gate CLI."
+readme = "README.md"
+authors = [
+    { name = "EthicCode Technologies", email = "contact@ethiccode.in" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.8"
+keywords = [
+    "env",
+    "dotenv",
+    "security",
+    "jwt",
+    "secrets",
+    "validator",
+    "linter",
+    "ci",
+    "cli"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance"
+]
+dependencies = []
+
+[project.scripts]
+dotvet = "dotvet.cli:main"
+
+[project.urls]
+Homepage = "https://ethiccode.in/dotvet"
+Issues = "https://github.com/EthicCodes/dotvet/issues"
+
+[tool.setuptools.packages.find]
+include = ["dotvet*"]
