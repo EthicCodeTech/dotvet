@@ -1,20 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <defs>
-    <linearGradient id="dotGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38bdf8"/>
-      <stop offset="100%" stop-color="#0284c7"/>
-    </linearGradient>
-    <filter id="subtleGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#0284c7" flood-opacity="0.3"/>
-    </filter>
-  </defs>
-  
-  <!-- Outer Rounded Container (matches Slate-900 aesthetic) -->
-  <rect x="2" y="2" width="60" height="60" rx="14" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
-  
-  <!-- Accent Dot (Cyan dot for the ".") -->
-  <circle cx="14" cy="38" r="3.2" fill="url(#dotGrad)" filter="url(#subtleGlow)"/>
-  
-  <!-- "vet" Text in Crisp Monospace Typography -->
-  <text x="20" y="42" font-family="-apple-system, BlinkMacSystemFont, 'JetBrains Mono', 'SF Pro Display', 'Inter', monospace" font-size="20" font-weight="800" fill="#ffffff" letter-spacing="-0.8">vet</text>
+  <rect width="64" height="64" rx="14" fill="#0f172a"/>
+  <text x="32" y="42" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'JetBrains Mono', monospace" font-size="25" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="-1">
+    <tspan fill="#06b6d4">.</tspan><tspan fill="#ffffff">vet</tspan>
+  </text>
 </svg>

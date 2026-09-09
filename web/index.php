@@ -77,11 +77,8 @@ $current_year = date("Y");
         <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <a href="#" class="flex items-center gap-2.5 group">
-                    <!-- .vet Favicon Badge -->
-                    <div class="h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white flex items-center gap-1 font-mono font-bold text-xs shadow-sm group-hover:border-cyan-500 transition-colors">
-                        <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                        <span class="tracking-tight text-white font-bold">vet</span>
-                    </div>
+                    <!-- .vet Logo Badge -->
+                    <img src="favicon.svg" alt=".vet" class="w-8 h-8 rounded-lg shadow-sm group-hover:opacity-90 transition-opacity">
                     <span class="font-extrabold text-xl tracking-tight text-slate-900"><?= htmlspecialchars($app_name) ?></span>
                 </a>
                 <span class="text-slate-300">|</span>
