@@ -20,9 +20,33 @@ $current_year = date("Y");
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Primary SEO Meta -->
     <title><?= htmlspecialchars($app_name) ?> — Never Ship Weak or Missing .env Secrets | <?= htmlspecialchars($maker) ?></title>
-    <meta name="description" content="dotvet scans your codebase to find every environment variable your app needs, checks that your .env file has safe values (no 'changeme', no weak secrets), and blocks broken deployments.">
+    <meta name="title" content="<?= htmlspecialchars($app_name) ?> — Never Ship Weak or Missing .env Secrets | <?= htmlspecialchars($maker) ?>">
+    <meta name="description" content="Zero-config environment variable security scanner & CI quality gate. Validates real secrets, bans 'changeme' placeholders, and stops insecure builds.">
     <meta name="author" content="<?= htmlspecialchars($maker) ?>">
+    <link rel="canonical" href="<?= htmlspecialchars($site_url) ?>/">
+
+    <!-- Open Graph / Facebook / LinkedIn / WhatsApp / Discord Preview -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="<?= htmlspecialchars($site_url) ?>/">
+    <meta property="og:title" content="<?= htmlspecialchars($app_name) ?> — Never Ship Weak or Missing .env Secrets">
+    <meta property="og:description" content="Scans your codebase, verifies real secret strength (JWT >= 32 chars, bans 'changeme'), and stops insecure builds in CI.">
+    <meta property="og:image" content="<?= htmlspecialchars($site_url) ?>/og-image.png">
+    <meta property="og:image:secure_url" content="<?= htmlspecialchars($site_url) ?>/og-image.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1024">
+    <meta property="og:image:height" content="576">
+    <meta property="og:image:alt" content="dotvet — Zero-Config Environment Variable Security Scanner">
+    <meta property="og:site_name" content="EthicCode Technologies">
+
+    <!-- Twitter / X Card Preview -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="<?= htmlspecialchars($site_url) ?>/">
+    <meta name="twitter:title" content="<?= htmlspecialchars($app_name) ?> — Never Ship Weak or Missing .env Secrets">
+    <meta name="twitter:description" content="Zero-config environment variable security scanner & CI quality gate. Built by EthicCode Technologies.">
+    <meta name="twitter:image" content="<?= htmlspecialchars($site_url) ?>/og-image.png">
+    <meta name="twitter:image:alt" content="dotvet — Zero-Config Environment Variable Security Scanner">
     
     <!-- Favicons (SVG, PNG, ICO, and Base64 Data URI for instant browser rendering) -->
     <link rel="icon" type="image/x-icon" href="favicon.ico">
