@@ -24,6 +24,9 @@ $current_year = date("Y");
     <meta name="description" content="dotvet scans your codebase to find every environment variable your app needs, checks that your .env file has safe values (no 'changeme', no weak secrets), and blocks broken deployments.">
     <meta name="author" content="<?= htmlspecialchars($maker) ?>">
     
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -73,8 +76,12 @@ $current_year = date("Y");
     <header class="border-b border-slate-200 bg-white sticky top-0 z-40">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <a href="#" class="flex items-center gap-2">
-                    <span class="w-8 h-8 rounded-md bg-slate-900 text-white flex items-center justify-center font-mono font-bold text-sm shadow-sm">dv</span>
+                <a href="#" class="flex items-center gap-2.5 group">
+                    <!-- .vet Favicon Badge -->
+                    <div class="h-8 px-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white flex items-center gap-1 font-mono font-bold text-xs shadow-sm group-hover:border-cyan-500 transition-colors">
+                        <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                        <span class="tracking-tight text-white font-bold">vet</span>
+                    </div>
                     <span class="font-extrabold text-xl tracking-tight text-slate-900"><?= htmlspecialchars($app_name) ?></span>
                 </a>
                 <span class="text-slate-300">|</span>
