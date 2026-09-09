@@ -197,24 +197,26 @@ def validate_env(
                 })
                 continue
 
-        # Case E: General secret strength
-        if SECRET_NAME_REGEX.search(var_name):
-            if len(str_val) < 16:
+        # Case E: General secret strength & entropy check (applies to secrets and JWTs)
+        if SECRET_NAME_REGEX.search(var_name) or JWT_NAME_REGEX.search(var_name):
+            # Check single repeating character (e.g. "aaaaaaaaaaaa")
+            if len(str_val) >= 6 and len(set(str_val)) == 1:
                 issues.append({
                     "name": var_name,
-                    "severity": "ERROR" if strict else "WARN",
-                    "rule": "WEAK_SECRET_LENGTH",
-                    "message": f"Sensitive variable {var_name} is only {len(str_val)} characters long (recommended: >= 16 characters).",
+                    "severity": "ERROR",
+                    "rule": "REPETITIVE_SECRET",
+                    "message": f"Variable {var_name} consists of repeating single characters. Completely guessable!",
                     "occurrences": occurrences,
-                    "solution": "Use a high-entropy string generated with a secure random generator.",
+                    "solution": "Generate a truly random secret.",
                 })
                 continue
 
+            # Check entropy
             entropy = calculate_entropy(str_val)
             if entropy < 2.5 and len(str_val) >= 8:
                 issues.append({
                     "name": var_name,
-                    "severity": "ERROR" if strict else "WARN",
+                    "severity": "ERROR",
                     "rule": "LOW_ENTROPY_SECRET",
                     "message": f"Variable {var_name} has dangerously low entropy ({entropy:.2f} bits/char). Appears repetitive or trivial.",
                     "occurrences": occurrences,
@@ -222,14 +224,15 @@ def validate_env(
                 })
                 continue
 
-            if len(set(str_val)) == 1 and len(str_val) >= 6:
+            # If non-JWT secret is less than 16 characters
+            if not JWT_NAME_REGEX.search(var_name) and len(str_val) < 16:
                 issues.append({
                     "name": var_name,
-                    "severity": "ERROR",
-                    "rule": "REPETITIVE_SECRET",
-                    "message": f"Variable {var_name} consists of repeating single characters.",
+                    "severity": "ERROR" if strict else "WARN",
+                    "rule": "WEAK_SECRET_LENGTH",
+                    "message": f"Sensitive variable {var_name} is only {len(str_val)} characters long (recommended: >= 16 characters).",
                     "occurrences": occurrences,
-                    "solution": "Generate a truly random secret.",
+                    "solution": "Use a high-entropy string generated with a secure random generator.",
                 })
                 continue
 

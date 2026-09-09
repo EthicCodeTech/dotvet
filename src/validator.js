@@ -223,27 +223,27 @@ export function validateEnv({
       }
     }
 
-    // Case E: General Secret strength check
-    if (SECRET_NAME_REGEX.test(varName)) {
-      // If secret is less than 16 characters
-      if (strVal.length < 16) {
+    // Case E: General Secret strength & entropy check (applies to secrets and JWTs)
+    if (SECRET_NAME_REGEX.test(varName) || JWT_NAME_REGEX.test(varName)) {
+      // Check single repeating character (e.g. "aaaaaaaaaaaa")
+      if (/^(.)\1{5,}$/.test(strVal)) {
         issues.push({
           name: varName,
-          severity: strict ? 'ERROR' : 'WARN',
-          rule: 'WEAK_SECRET_LENGTH',
-          message: `Sensitive variable ${varName} is only ${strVal.length} characters long (recommended: >= 16 characters).`,
+          severity: 'ERROR',
+          rule: 'REPETITIVE_SECRET',
+          message: `Variable ${varName} consists of repeating single characters. Completely guessable!`,
           occurrences,
-          solution: `Use a high-entropy string generated with a secure random generator.`
+          solution: `Generate a truly random secret.`
         });
         continue;
       }
 
-      // Check entropy & repeated characters
+      // Check entropy
       const entropy = calculateEntropy(strVal);
       if (entropy < 2.5 && strVal.length >= 8) {
         issues.push({
           name: varName,
-          severity: strict ? 'ERROR' : 'WARN',
+          severity: 'ERROR',
           rule: 'LOW_ENTROPY_SECRET',
           message: `Variable ${varName} has dangerously low entropy (${entropy.toFixed(2)} bits/char). Appears repetitive or trivial.`,
           occurrences,
@@ -252,15 +252,15 @@ export function validateEnv({
         continue;
       }
 
-      // Check single repeating character (e.g. "aaaaaaaaaaaa")
-      if (/^(.)\1{5,}$/.test(strVal)) {
+      // If non-JWT secret is less than 16 characters
+      if (!JWT_NAME_REGEX.test(varName) && strVal.length < 16) {
         issues.push({
           name: varName,
-          severity: 'ERROR',
-          rule: 'REPETITIVE_SECRET',
-          message: `Variable ${varName} consists of repeating single characters.`,
+          severity: strict ? 'ERROR' : 'WARN',
+          rule: 'WEAK_SECRET_LENGTH',
+          message: `Sensitive variable ${varName} is only ${strVal.length} characters long (recommended: >= 16 characters).`,
           occurrences,
-          solution: `Generate a truly random secret.`
+          solution: `Use a high-entropy string generated with a secure random generator.`
         });
         continue;
       }

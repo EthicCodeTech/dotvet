@@ -55,6 +55,19 @@ class TestDotvetValidator(unittest.TestCase):
         self.assertFalse(res["ok"])
         self.assertEqual(res["errors"][0]["rule"], "JWT_UNDERSIZED")
 
+    def test_jwt_repetitive_chars(self):
+        discovered = {
+            "JWT_SECRET": {
+                "occurrences": [{"file": "auth.py", "line": 5, "snippet": "os.getenv('JWT_SECRET')"}]
+            }
+        }
+        res = validate_env(
+            discovered_vars=discovered,
+            env_values={"JWT_SECRET": "a" * 32},
+        )
+        self.assertFalse(res["ok"])
+        self.assertEqual(res["errors"][0]["rule"], "REPETITIVE_SECRET")
+
     def test_jwt_valid(self):
         discovered = {
             "JWT_SECRET": {
@@ -74,13 +87,20 @@ class TestDotvetGenerator(unittest.TestCase):
         self.assertEqual(infer_var_meta("PORT")["type"], "integer")
         self.assertEqual(infer_var_meta("DATABASE_URL")["type"], "url")
         self.assertEqual(infer_var_meta("JWT_SECRET")["type"], "secret")
+        self.assertEqual(infer_var_meta("IS_PROD")["type"], "boolean")
 
     def test_generate_schema(self):
-        var_map = {"PORT": {"name": "PORT"}, "JWT_SECRET": {"name": "JWT_SECRET"}}
+        var_map = {
+            "PORT": {"name": "PORT"},
+            "JWT_SECRET": {"name": "JWT_SECRET"},
+        }
         schema_json = generate_schema(var_map)
         data = json.loads(schema_json)
         self.assertIn("PORT", data["required"])
         self.assertIn("JWT_SECRET", data["required"])
+        self.assertEqual(data["properties"]["PORT"]["type"], "integer")
+        self.assertEqual(data["properties"]["PORT"]["default"], 3000)
+        self.assertIsInstance(data["properties"]["PORT"]["default"], int)
         self.assertEqual(data["properties"]["JWT_SECRET"]["minLength"], 32)
 
 
@@ -110,6 +130,12 @@ class TestDotvetFixer(unittest.TestCase):
             self.assertNotEqual(parsed["JWT_SECRET"], "changeme")
             self.assertGreaterEqual(len(parsed["JWT_SECRET"]), 32)
             self.assertIn("DATABASE_URL", parsed)
+
+            gitignore_path = os.path.join(tmp_dir, ".gitignore")
+            self.assertTrue(os.path.exists(gitignore_path))
+            with open(gitignore_path, "r", encoding="utf-8") as f:
+                git_content = f.read()
+            self.assertIn(".env", git_content)
 
 
 if __name__ == "__main__":

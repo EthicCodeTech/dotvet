@@ -29,7 +29,7 @@ export function fixEnv({
   const fullEnvPath = path.resolve(rootDir, envFilePath);
   const actions = [];
 
-  // 1. Ensure .env is in .gitignore
+  // 1. Ensure .env is in .gitignore (create .gitignore if missing)
   const gitignorePath = path.join(rootDir, '.gitignore');
   if (fs.existsSync(gitignorePath)) {
     try {
@@ -41,6 +41,13 @@ export function fixEnv({
         fs.appendFileSync(gitignorePath, appended, 'utf8');
         actions.push({ type: 'GITIGNORE_ADDED', message: `Added ${envFilePath} to .gitignore to prevent secret leaks` });
       }
+    } catch {
+      // ignore
+    }
+  } else {
+    try {
+      fs.writeFileSync(gitignorePath, `${envFilePath}\n.env*.local\n`, 'utf8');
+      actions.push({ type: 'GITIGNORE_CREATED', message: `Created .gitignore and added ${envFilePath} to prevent secret leaks` });
     } catch {
       // ignore
     }

@@ -23,7 +23,7 @@ def fix_env(
     full_env_path = os.path.join(root_dir, env_file_path)
     actions = []
 
-    # 1. Ensure .env is in .gitignore
+    # 1. Ensure .env is in .gitignore (create .gitignore if missing)
     gitignore_path = os.path.join(root_dir, ".gitignore")
     if os.path.exists(gitignore_path):
         try:
@@ -41,6 +41,16 @@ def fix_env(
                     "type": "GITIGNORE_ADDED",
                     "message": f"Added {env_file_path} to .gitignore to prevent secret leaks",
                 })
+        except Exception:
+            pass
+    else:
+        try:
+            with open(gitignore_path, "w", encoding="utf-8") as f:
+                f.write(f"{env_file_path}\n.env*.local\n")
+            actions.append({
+                "type": "GITIGNORE_CREATED",
+                "message": f"Created .gitignore and added {env_file_path} to prevent secret leaks",
+            })
         except Exception:
             pass
 

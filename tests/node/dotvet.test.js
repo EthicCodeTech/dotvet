@@ -53,6 +53,17 @@ describe('Validator & Security Rules (Node)', () => {
     assert.strictEqual(res.errors[0].rule, 'JWT_UNDERSIZED');
   });
 
+  test('JWT secret with >= 32 repetitive characters triggers REPETITIVE_SECRET hard error', () => {
+    const discovered = new Map([
+      ['JWT_SECRET', { occurrences: [{ file: 'auth.js', line: 10, snippet: 'process.env.JWT_SECRET' }] }]
+    ]);
+    const env = { JWT_SECRET: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }; // 32 'a's
+    const res = validateEnv({ discoveredVars: discovered, envValues: env });
+    assert.strictEqual(res.ok, false);
+    assert.strictEqual(res.errors.length, 1);
+    assert.strictEqual(res.errors[0].rule, 'REPETITIVE_SECRET');
+  });
+
   test('JWT secret with >= 32 characters passes', () => {
     const discovered = new Map([
       ['JWT_SECRET', { occurrences: [{ file: 'auth.js', line: 10, snippet: 'process.env.JWT_SECRET' }] }]
@@ -81,7 +92,7 @@ describe('Generator (Node)', () => {
     assert.strictEqual(inferVarMeta('IS_PROD').type, 'boolean');
   });
 
-  test('generateSchema generates valid JSON with correct constraints', () => {
+  test('generateSchema generates valid JSON with correct constraints and integer defaults', () => {
     const varMap = new Map([
       ['PORT', { name: 'PORT' }],
       ['JWT_SECRET', { name: 'JWT_SECRET' }]
@@ -90,12 +101,15 @@ describe('Generator (Node)', () => {
     const schema = JSON.parse(schemaStr);
     assert.ok(schema.required.includes('PORT'));
     assert.ok(schema.required.includes('JWT_SECRET'));
+    assert.strictEqual(schema.properties.PORT.type, 'integer');
+    assert.strictEqual(schema.properties.PORT.default, 3000);
+    assert.strictEqual(typeof schema.properties.PORT.default, 'number');
     assert.strictEqual(schema.properties.JWT_SECRET.minLength, 32);
   });
 });
 
 describe('Fixer (Node)', () => {
-  test('fixEnv auto-generates secure secrets and replaces placeholders', () => {
+  test('fixEnv auto-generates secure secrets, replaces placeholders, and creates missing .gitignore', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotvet-test-'));
     const envPath = path.join(tempDir, '.env');
     fs.writeFileSync(envPath, 'JWT_SECRET=changeme\nPORT=3000\n', 'utf8');
@@ -120,6 +134,12 @@ describe('Fixer (Node)', () => {
     assert.ok(parsed.JWT_SECRET.length >= 32);
     // DATABASE_URL should have been added
     assert.ok(parsed.DATABASE_URL);
+
+    // .gitignore should have been created with .env
+    const gitignorePath = path.join(tempDir, '.gitignore');
+    assert.ok(fs.existsSync(gitignorePath));
+    const gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
+    assert.ok(gitignoreContent.includes('.env'));
 
     // Clean up
     fs.rmSync(tempDir, { recursive: true, force: true });

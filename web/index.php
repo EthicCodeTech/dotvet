@@ -6,7 +6,7 @@
  */
 
 $app_name = "dotvet";
-$version = "0.1.0";
+$version = "0.1.1";
 $maker = "EthicCode Technologies";
 $site_url = "https://ethiccode.in/dotvet";
 $pypi_url = "https://pypi.org/project/dotvet/";
