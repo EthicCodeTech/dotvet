@@ -26,6 +26,13 @@ DEFAULT_IGNORES = {
     ".vscode",
     "target",
     "tmp",
+    "web",
+    "site",
+    "docs",
+    "tests",
+    "test",
+    "__tests__",
+    "fixtures",
 }
 
 VALID_EXTENSIONS = {
@@ -34,35 +41,38 @@ VALID_EXTENSIONS = {
     ".py", ".pyw",
     ".go",
     ".rs",
-    ".rb",
     ".php",
     ".sh", ".bash", ".zsh",
-    ".yaml", ".yml",
-    ".json",
 }
 
 SPECIAL_FILENAMES = {
     "Dockerfile",
     "docker-compose.yml",
     "docker-compose.yaml",
-    ".env.example",
-    ".env.sample",
-    ".env.template",
 }
 
-PATTERNS = [
-    # JS/TS: process.env.FOO or process.env['FOO']
+JS_PATTERNS = [
     re.compile(r"process\.env\.([A-Z0-9_]+)"),
     re.compile(r"process\.env\[['\"]([A-Z0-9_]+)['\"]\]"),
-    # Vite / ESM: import.meta.env.VITE_FOO
     re.compile(r"import\.meta\.env\.([A-Z0-9_]+)"),
-    # Python: os.environ.get('FOO'), os.getenv('FOO'), os.environ['FOO']
+]
+
+PYTHON_PATTERNS = [
     re.compile(r"os\.environ\.get\(\s*['\"]([A-Z0-9_]+)['\"]"),
     re.compile(r"os\.getenv\(\s*['\"]([A-Z0-9_]+)['\"]"),
     re.compile(r"os\.environ\[\s*['\"]([A-Z0-9_]+)['\"]\s*\]"),
-    # Go: os.Getenv("FOO"), os.LookupEnv("FOO")
+]
+
+GO_PATTERNS = [
     re.compile(r'os\.(?:Getenv|LookupEnv)\(\s*"([A-Z0-9_]+)"\s*\)'),
-    # Shell / Docker: ${VAR_NAME} or ENV VAR_NAME=...
+]
+
+PHP_PATTERNS = [
+    re.compile(r"(?<![\.\$])\bgetenv\(\s*['\"]([A-Z0-9_]+)['\"]\s*\)"),
+    re.compile(r"\$_(?:ENV|SERVER)\[\s*['\"]([A-Z0-9_]+)['\"]\s*\]"),
+]
+
+SHELL_PATTERNS = [
     re.compile(r"\$\{([A-Z0-9_]{3,})\}"),
     re.compile(r"^ENV\s+([A-Z0-9_]+)", re.MULTILINE),
 ]
@@ -79,17 +89,37 @@ SYSTEM_IGNORES = {
     "TMPDIR",
     "SHLVL",
     "CI",
+    "GITHUB_ACTIONS",
+    "VERCEL",
+    "NETLIFY",
 }
 
 
+def get_patterns_for_file(file_path: str) -> List[re.Pattern]:
+    ext = Path(file_path).suffix.lower()
+    fname = Path(file_path).name
+
+    if fname == "Dockerfile":
+        return SHELL_PATTERNS
+    if ext in {".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".tsx"}:
+        return JS_PATTERNS
+    if ext in {".py", ".pyw"}:
+        return PYTHON_PATTERNS
+    if ext == ".go":
+        return GO_PATTERNS
+    if ext == ".php":
+        return PHP_PATTERNS
+    if ext in {".sh", ".bash", ".zsh"}:
+        return SHELL_PATTERNS
+    return []
+
+
 def find_files(root_dir: str, custom_ignores: List[str] = None) -> List[str]:
-    """Recursively find all eligible files in root_dir."""
     ignore_set = DEFAULT_IGNORES | set(custom_ignores or [])
     matched_files = []
     root_path = Path(root_dir).resolve()
 
     for dirpath, dirnames, filenames in os.walk(root_path):
-        # Filter directories in-place to avoid descending into ignored folders
         dirnames[:] = [
             d for d in dirnames
             if d not in ignore_set and not d.startswith(".")
@@ -106,8 +136,11 @@ def find_files(root_dir: str, custom_ignores: List[str] = None) -> List[str]:
 
 
 def scan_file(file_path: str, root_dir: str) -> List[Dict[str, Any]]:
-    """Scan a single file for environment variable references."""
     matches = []
+    patterns = get_patterns_for_file(file_path)
+    if not patterns:
+        return matches
+
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
@@ -123,7 +156,7 @@ def scan_file(file_path: str, root_dir: str) -> List[Dict[str, Any]]:
         if trimmed.startswith("//") or trimmed.startswith("#") or trimmed.startswith("*"):
             continue
 
-        for pattern in PATTERNS:
+        for pattern in patterns:
             for match in pattern.finditer(line_text):
                 var_name = match.group(1)
                 if var_name and var_name not in SYSTEM_IGNORES and re.match(r"^[A-Z][A-Z0-9_]*$", var_name):
@@ -138,7 +171,6 @@ def scan_file(file_path: str, root_dir: str) -> List[Dict[str, Any]]:
 
 
 def scan_codebase(root_dir: str = ".", custom_ignores: List[str] = None) -> Dict[str, Dict[str, Any]]:
-    """Scan entire codebase and return map of var_name -> metadata."""
     files = find_files(root_dir, custom_ignores)
     var_map: Dict[str, Dict[str, Any]] = {}
 

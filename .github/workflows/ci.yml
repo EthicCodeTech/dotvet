@@ -1,4 +1,4 @@
-name: dotvet Security & Quality Gate
+name: dotvet CI & Test Suite
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
     branches: [main, master]
 
 jobs:
-  env-security-check:
-    name: Audit Environment & Secrets Quality
+  test-and-audit:
+    name: Unit Tests & Self Audit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -19,11 +19,21 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Run dotvet Security Gate (Node)
-        run: npx dotvet check --ci --strict
-        env:
-          # In CI, supply your test/mock secrets to verify that required env vars exist and are non-trivial
-          PORT: '8080'
-          DATABASE_URL: 'postgresql://ci_runner:ci_password@localhost:5432/test_db'
-          JWT_SECRET: 'ci_random_jwt_signing_key_at_least_32_characters_long_12345'
-          API_KEY: 'ci_valid_entropy_api_key_for_testing_purposes_98765'
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Node.js Test Suite
+        run: npm test
+
+      - name: Run Python Test Suite
+        run: python -m unittest discover -s tests/python -p "test_*.py"
+
+      - name: Verify CLI Executables
+        run: |
+          node bin/dotvet.js --version
+          python -m dotvet.cli --version
+
+      - name: Run dotvet Self-Audit Gate
+        run: node bin/dotvet.js check --ci --strict

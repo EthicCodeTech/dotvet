@@ -23,7 +23,14 @@ const DEFAULT_IGNORES = new Set([
   '.idea',
   '.vscode',
   'target',
-  'tmp'
+  'tmp',
+  'web',
+  'site',
+  'docs',
+  'tests',
+  'test',
+  '__tests__',
+  'fixtures'
 ]);
 
 const VALID_EXTENSIONS = new Set([
@@ -32,68 +39,43 @@ const VALID_EXTENSIONS = new Set([
   '.py', '.pyw',
   '.go',
   '.rs',
-  '.rb',
   '.php',
-  '.sh', '.bash', '.zsh',
-  '.yaml', '.yml',
-  '.json'
+  '.sh', '.bash', '.zsh'
 ]);
 
 const SPECIAL_FILENAMES = new Set([
   'Dockerfile',
   'docker-compose.yml',
-  'docker-compose.yaml',
-  '.env.example',
-  '.env.sample',
-  '.env.template'
+  'docker-compose.yaml'
 ]);
 
-// Patterns to detect environment variable references across languages
-const PATTERNS = [
-  // JS/TS: process.env.FOO or process.env['FOO'] or process.env["FOO"]
-  {
-    regex: /process\.env\.([A-Z0-9_]+)/g,
-    extract: (m) => m[1]
-  },
-  {
-    regex: /process\.env\[['"]([A-Z0-9_]+)['"]\]/g,
-    extract: (m) => m[1]
-  },
-  // Vite / ESM: import.meta.env.VITE_FOO
-  {
-    regex: /import\.meta\.env\.([A-Z0-9_]+)/g,
-    extract: (m) => m[1]
-  },
-  // Python: os.environ.get('FOO'), os.getenv('FOO'), os.environ['FOO']
-  {
-    regex: /os\.environ\.get\(\s*['"]([A-Z0-9_]+)['"]/g,
-    extract: (m) => m[1]
-  },
-  {
-    regex: /os\.getenv\(\s*['"]([A-Z0-9_]+)['"]/g,
-    extract: (m) => m[1]
-  },
-  {
-    regex: /os\.environ\[\s*['"]([A-Z0-9_]+)['"]\s*\]/g,
-    extract: (m) => m[1]
-  },
-  // Go: os.Getenv("FOO"), os.LookupEnv("FOO")
-  {
-    regex: /os\.(?:Getenv|LookupEnv)\(\s*"([A-Z0-9_]+)"\s*\)/g,
-    extract: (m) => m[1]
-  },
-  // Shell / Docker: ${VAR_NAME} or ENV VAR_NAME=...
-  {
-    regex: /\$\{([A-Z0-9_]{3,})\}/g,
-    extract: (m) => m[1]
-  },
-  {
-    regex: /^ENV\s+([A-Z0-9_]+)/gm,
-    extract: (m) => m[1]
-  }
+// Scoped pattern definitions by language/file type
+const JS_PATTERNS = [
+  { regex: /process\.env\.([A-Z0-9_]+)/g, extract: m => m[1] },
+  { regex: /process\.env\[['"]([A-Z0-9_]+)['"]\]/g, extract: m => m[1] },
+  { regex: /import\.meta\.env\.([A-Z0-9_]+)/g, extract: m => m[1] }
 ];
 
-// System/internal env vars to ignore from code scans
+const PYTHON_PATTERNS = [
+  { regex: /os\.environ\.get\(\s*['"]([A-Z0-9_]+)['"]/g, extract: m => m[1] },
+  { regex: /os\.getenv\(\s*['"]([A-Z0-9_]+)['"]/g, extract: m => m[1] },
+  { regex: /os\.environ\[\s*['"]([A-Z0-9_]+)['"]\s*\]/g, extract: m => m[1] }
+];
+
+const GO_PATTERNS = [
+  { regex: /os\.(?:Getenv|LookupEnv)\(\s*"([A-Z0-9_]+)"\s*\)/g, extract: m => m[1] }
+];
+
+const PHP_PATTERNS = [
+  { regex: /(?<![\.\$])\bgetenv\(\s*['"]([A-Z0-9_]+)['"]\s*\)/g, extract: m => m[1] },
+  { regex: /\$_(?:ENV|SERVER)\[\s*['"]([A-Z0-9_]+)['"]\s*\]/g, extract: m => m[1] }
+];
+
+const SHELL_PATTERNS = [
+  { regex: /\$\{([A-Z0-9_]{3,})\}/g, extract: m => m[1] },
+  { regex: /^ENV\s+([A-Z0-9_]+)/gm, extract: m => m[1] }
+];
+
 const SYSTEM_IGNORES = new Set([
   'NODE_ENV',
   'PATH',
@@ -105,8 +87,36 @@ const SYSTEM_IGNORES = new Set([
   'LANG',
   'TMPDIR',
   'SHLVL',
-  'CI'
+  'CI',
+  'GITHUB_ACTIONS',
+  'VERCEL',
+  'NETLIFY'
 ]);
+
+function getPatternsForFile(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const basename = path.basename(filePath);
+
+  if (basename === 'Dockerfile') {
+    return SHELL_PATTERNS;
+  }
+  if (['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx'].includes(ext)) {
+    return JS_PATTERNS;
+  }
+  if (['.py', '.pyw'].includes(ext)) {
+    return PYTHON_PATTERNS;
+  }
+  if (ext === '.go') {
+    return GO_PATTERNS;
+  }
+  if (ext === '.php') {
+    return PHP_PATTERNS;
+  }
+  if (['.sh', '.bash', '.zsh'].includes(ext)) {
+    return SHELL_PATTERNS;
+  }
+  return [];
+}
 
 /**
  * Recursively find all eligible files in a directory.
@@ -124,7 +134,6 @@ export function findFiles(dir, rootDir = dir, customIgnores = []) {
 
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
-    const relPath = path.relative(rootDir, fullPath);
 
     if (entry.isDirectory()) {
       if (!ignoreSet.has(entry.name) && !entry.name.startsWith('.')) {
@@ -133,7 +142,6 @@ export function findFiles(dir, rootDir = dir, customIgnores = []) {
     } else if (entry.isFile()) {
       const ext = path.extname(entry.name).toLowerCase();
       if (VALID_EXTENSIONS.has(ext) || SPECIAL_FILENAMES.has(entry.name)) {
-        // Skip package-lock, lockfiles, and minified files
         if (entry.name.endsWith('.min.js') || entry.name.endsWith('.lock') || entry.name === 'package-lock.json') {
           continue;
         }
@@ -150,6 +158,9 @@ export function findFiles(dir, rootDir = dir, customIgnores = []) {
  */
 export function scanFile(filePath, rootDir = process.cwd()) {
   const matches = [];
+  const patterns = getPatternsForFile(filePath);
+  if (patterns.length === 0) return matches;
+
   let content;
   try {
     content = fs.readFileSync(filePath, 'utf8');
@@ -162,13 +173,12 @@ export function scanFile(filePath, rootDir = process.cwd()) {
 
   lines.forEach((lineText, idx) => {
     const lineNum = idx + 1;
-    // Don't scan comment-only lines in JS/TS/Py
     const trimmed = lineText.trim();
     if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('*')) {
       return;
     }
 
-    for (const { regex, extract } of PATTERNS) {
+    for (const { regex, extract } of patterns) {
       regex.lastIndex = 0;
       let match;
       while ((match = regex.exec(lineText)) !== null) {
@@ -190,7 +200,6 @@ export function scanFile(filePath, rootDir = process.cwd()) {
 
 /**
  * Scan entire codebase starting at rootDir.
- * Returns a Map of varName -> { name, occurrences: [{ file, line, snippet }] }
  */
 export function scanCodebase(rootDir = process.cwd(), customIgnores = []) {
   const files = findFiles(rootDir, rootDir, customIgnores);
