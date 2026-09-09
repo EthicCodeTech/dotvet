@@ -170,19 +170,35 @@ def scan_file(file_path: str, root_dir: str) -> List[Dict[str, Any]]:
     return matches
 
 
+def load_gitignore_patterns(root_dir: str) -> List[str]:
+    gitignore_path = os.path.join(root_dir, ".gitignore")
+    if not os.path.isfile(gitignore_path):
+        return []
+    try:
+        with open(gitignore_path, "r", encoding="utf-8", errors="ignore") as f:
+            lines = f.read().splitlines()
+        patterns = []
+        for line in lines:
+            trimmed = line.strip()
+            if trimmed and not trimmed.startswith("#"):
+                patterns.append(trimmed.strip("/"))
+        return patterns
+    except Exception:
+        return []
+
+
 def scan_codebase(root_dir: str = ".", custom_ignores: List[str] = None) -> Dict[str, Dict[str, Any]]:
-    files = find_files(root_dir, custom_ignores)
+    gitignore_patterns = load_gitignore_patterns(root_dir)
+    all_ignores = gitignore_patterns + (custom_ignores or [])
+    files = find_files(root_dir, all_ignores)
     var_map: Dict[str, Dict[str, Any]] = {}
 
-    for fpath in files:
-        hits = scan_file(fpath, root_dir)
+    for file_path in files:
+        hits = scan_file(file_path, root_dir)
         for hit in hits:
             name = hit["name"]
             if name not in var_map:
-                var_map[name] = {
-                    "name": name,
-                    "occurrences": [],
-                }
+                var_map[name] = {"name": name, "occurrences": []}
             var_map[name]["occurrences"].append({
                 "file": hit["file"],
                 "line": hit["line"],

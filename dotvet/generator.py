@@ -29,11 +29,19 @@ def infer_var_meta(var_name: str) -> Dict[str, Any]:
             "required": True,
         }
 
-    if "JWT" in upper or "JWT_SECRET" in upper:
+    if "JWT_SECRET" in upper or upper == "JWT":
         return {
             "type": "secret",
             "example": "replace_with_32_character_minimum_random_secret_string_here",
             "description": "JWT signing secret (minimum 32 characters required by dotvet)",
+            "required": True,
+        }
+
+    if any(k in upper for k in ("EXPIR", "TTL", "TIMEOUT", "LIFETIME", "DURATION", "MAX_AGE", "INTERVAL")):
+        return {
+            "type": "string",
+            "example": "3600000" if "MS" in upper else "1d",
+            "description": f"Duration or expiration string for {var_name}",
             "required": True,
         }
 

@@ -199,10 +199,29 @@ export function scanFile(filePath, rootDir = process.cwd()) {
 }
 
 /**
+ * Read ignore patterns from .gitignore if present.
+ */
+export function loadGitignorePatterns(rootDir) {
+  const gitignorePath = path.join(rootDir, '.gitignore');
+  if (!fs.existsSync(gitignorePath)) return [];
+  try {
+    const content = fs.readFileSync(gitignorePath, 'utf8');
+    return content
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('#'))
+      .map(line => line.replace(/^\//, '').replace(/\/$/, ''));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Scan entire codebase starting at rootDir.
  */
 export function scanCodebase(rootDir = process.cwd(), customIgnores = []) {
-  const files = findFiles(rootDir, rootDir, customIgnores);
+  const gitignorePatterns = loadGitignorePatterns(rootDir);
+  const files = findFiles(rootDir, rootDir, [...gitignorePatterns, ...customIgnores]);
   const varMap = new Map();
 
   for (const file of files) {

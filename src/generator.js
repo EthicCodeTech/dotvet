@@ -29,11 +29,28 @@ export function inferVarMeta(varName) {
     };
   }
 
-  if (upper.includes('JWT') || upper.includes('JWT_SECRET')) {
+  if (upper.includes('JWT_SECRET') || upper === 'JWT') {
     return {
       type: 'secret',
       example: 'replace_with_32_character_minimum_random_secret_string_here',
       description: 'JWT signing secret (minimum 32 characters required by dotvet)',
+      required: true
+    };
+  }
+
+  if (
+    upper.includes('EXPIR') ||
+    upper.includes('TTL') ||
+    upper.includes('TIMEOUT') ||
+    upper.includes('LIFETIME') ||
+    upper.includes('DURATION') ||
+    upper.includes('MAX_AGE') ||
+    upper.includes('INTERVAL')
+  ) {
+    return {
+      type: 'string',
+      example: upper.includes('MS') ? '3600000' : '1d',
+      description: `Duration or expiration string for ${varName}`,
       required: true
     };
   }

@@ -51,3 +51,6 @@ env/
 *.php
 index.php
 
+# Local test sandboxes
+test-sandbox/
+
