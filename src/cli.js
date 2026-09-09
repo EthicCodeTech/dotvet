@@ -23,7 +23,7 @@ const c = {
   bgGreen: '\x1b[42m\x1b[30m'
 };
 
-const VERSION = '0.1.4';
+const VERSION = '0.1.5';
 
 function printHelp() {
   console.log(`
@@ -85,8 +85,10 @@ export function run(args = process.argv.slice(2), rootDir = process.cwd()) {
   if (subCommand === 'install-hook') {
     const res = installGitHook(rootDir);
     if (res.ok) {
-      console.log(`\n${c.green}✔${c.reset} Pre-commit hook installed successfully at ${c.bold}${res.hookPath}${c.reset}`);
-      console.log(`${c.dim}Insecure secrets or un-gitignored .env files will now be blocked before commit.${c.reset}\n`);
+      console.log(`\n${c.green}✔${c.reset} Dual Git hooks installed successfully:`);
+      console.log(`  • Pre-commit: ${c.bold}${res.preCommitPath || res.hookPath}${c.reset}`);
+      console.log(`  • Pre-push:   ${c.bold}${res.prePushPath}${c.reset}`);
+      console.log(`${c.dim}Future commits and pushes are now automatically guarded against insecure secrets and leaks.${c.reset}\n`);
       return 0;
     } else {
       console.error(`\n${c.red}✖${c.reset} ${res.error}\n`);

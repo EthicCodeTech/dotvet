@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { scanGitHistory } from './gitRecon.js';
 
 // Known placeholder patterns commonly left in .env files
 const PLACEHOLDER_PATTERNS = [
@@ -228,6 +229,26 @@ export function validateEnv({
         solution: `Add "${envFilePath}" to your .gitignore file.`
       });
     }
+  }
+
+  // 1b. Passive Reconnaissance: Glance at Git history for past .env commits
+  const gitLeaks = scanGitHistory(rootDir);
+  for (const leak of gitLeaks) {
+    const pushStatus = leak.isPushed
+      ? '⚠️ PUSHED TO REMOTE'
+      : 'Local only (not pushed)';
+    const solution = leak.isPushed
+      ? `This commit was pushed to a remote repository! If this repository is or ever becomes public, credentials in ${leak.file} WILL be scraped by automated bots in seconds. ROTATE ALL EXPOSED SECRETS IMMEDIATELY at your providers (OpenAI, AWS, MongoDB, Stripe, etc.).`
+      : `This commit is currently local-only. Remove the commit or reset before pushing to your remote.`;
+
+    issues.push({
+      name: leak.file,
+      severity: strict ? 'ERROR' : 'WARN',
+      rule: 'HISTORICAL_ENV_LEAK',
+      message: `Historical leak detected: "${leak.file}" was committed in commit ${leak.commit} by ${leak.author} on ${leak.date} ("${leak.message}"). Status: ${pushStatus}. Even if deleted later, it remains permanently stored in Git objects!`,
+      solution,
+      historical: leak
+    });
   }
 
   // 2. Validate every variable discovered in the codebase

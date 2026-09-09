@@ -91,8 +91,10 @@ def run(args: List[str] = None, root_dir: str = ".") -> int:
     if sub_command == "install-hook":
         res = install_git_hook(root_dir)
         if res["ok"]:
-            print(f"\n{C.GREEN}✔{C.RESET} Pre-commit hook installed successfully at {C.BOLD}{res['hookPath']}{C.RESET}")
-            print(f"{C.DIM}Insecure secrets or un-gitignored .env files will now be blocked before commit.{C.RESET}\n")
+            print(f"\n{C.GREEN}✔{C.RESET} Dual Git hooks installed successfully:")
+            print(f"  • Pre-commit: {C.BOLD}{res.get('preCommitPath') or res['hookPath']}{C.RESET}")
+            print(f"  • Pre-push:   {C.BOLD}{res.get('prePushPath')}{C.RESET}")
+            print(f"{C.DIM}Future commits and pushes are now automatically guarded against insecure secrets and leaks.{C.RESET}\n")
             return 0
         else:
             print(f"\n{C.RED}✖{C.RESET} {res['error']}\n", file=sys.stderr)

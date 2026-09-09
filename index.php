@@ -6,7 +6,7 @@
  */
 
 $app_name = "dotvet";
-$version = "0.1.4";
+$version = "0.1.5";
 $maker = "EthicCode Technologies";
 $site_url = "https://ethiccode.in/dotvet";
 $pypi_url = "https://pypi.org/project/dotvet/";
@@ -401,6 +401,18 @@ $current_year = date("Y");
                         </p>
                     </div>
                 </div>
+
+                <div class="p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3 bg-white">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 rounded bg-red-100 text-red-800 text-xs font-bold font-mono">RECON</span>
+                            <span class="font-bold text-slate-900">Historical .env Leaks in Past Git Commits</span>
+                        </div>
+                        <p class="text-xs text-slate-600">
+                            Passive reconnaissance glances at your Git commit graph. If someone committed a <code class="bg-slate-100 px-1 rounded font-mono">.env</code> file in the past and then deleted it in a later commit, dotvet flags the exact commit hash, author, and whether it was pushed to a remote before scraper bots exploit it.
+                        </p>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -481,9 +493,9 @@ $current_year = date("Y");
                 <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
                     <div>
                         <span class="font-bold text-slate-900 text-sm">dotvet install-hook</span>
-                        <p class="font-sans text-xs text-slate-600 mt-1">Installs a Git pre-commit hook so nobody on your team can commit insecure secrets.</p>
+                        <p class="font-sans text-xs text-slate-600 mt-1">Installs dual Git hooks (pre-commit & pre-push) so nobody on your team can commit or push insecure secrets.</p>
                     </div>
-                    <span class="text-slate-500 font-sans text-xs">Pre-Commit Guard</span>
+                    <span class="text-slate-500 font-sans text-xs">Dual Hook Guard</span>
                 </div>
             </div>
         </section>

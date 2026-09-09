@@ -2,6 +2,7 @@ import unittest
 import os
 import tempfile
 import json
+import subprocess
 from dotvet.validator import (
     parse_dotenv,
     calculate_entropy,
@@ -10,6 +11,8 @@ from dotvet.validator import (
 )
 from dotvet.generator import infer_var_meta, generate_schema
 from dotvet.fixer import fix_env
+from dotvet.git_recon import scan_git_history
+from dotvet.hook import install_git_hook
 
 
 class TestDotvetValidator(unittest.TestCase):
@@ -179,5 +182,69 @@ class TestDotvetFixer(unittest.TestCase):
             self.assertIn(".env", git_content)
 
 
+class TestPassiveGitRecon(unittest.TestCase):
+    def test_scan_git_history(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            env = os.environ.copy()
+            if "GIT_CONFIG_GLOBAL" not in env and os.name != "nt":
+                env["GIT_CONFIG_GLOBAL"] = "/dev/null"
+
+            subprocess.run(["git", "init", "-b", "main"], cwd=tmp_dir, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_dir, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_dir, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            # Commit 1: add .env
+            with open(os.path.join(tmp_dir, ".env"), "w", encoding="utf-8") as f:
+                f.write("SECRET_KEY=123456\n")
+            subprocess.run(["git", "add", ".env"], cwd=tmp_dir, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["git", "commit", "-m", "add env"], cwd=tmp_dir, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            # Commit 2: delete .env
+            os.remove(os.path.join(tmp_dir, ".env"))
+            subprocess.run(["git", "add", "-A"], cwd=tmp_dir, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["git", "commit", "-m", "remove env"], cwd=tmp_dir, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            # Commit 3: add safe .env.example
+            with open(os.path.join(tmp_dir, ".env.example"), "w", encoding="utf-8") as f:
+                f.write("SECRET_KEY=your_key_here\n")
+            subprocess.run(["git", "add", ".env.example"], cwd=tmp_dir, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["git", "commit", "-m", "add example"], cwd=tmp_dir, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            leaks = scan_git_history(tmp_dir)
+            self.assertGreaterEqual(len(leaks), 1)
+            self.assertEqual(leaks[0]["file"], ".env")
+            self.assertEqual(leaks[0]["author"], "Test")
+            self.assertFalse(leaks[0]["is_pushed"])
+
+            # Verify safe example was not flagged
+            self.assertFalse(any(l["file"] == ".env.example" for l in leaks))
+
+            # Verify validate_env surfaces HISTORICAL_ENV_LEAK warning
+            res = validate_env(discovered_vars={}, root_dir=tmp_dir, strict=False)
+            self.assertTrue(any(w["rule"] == "HISTORICAL_ENV_LEAK" for w in res["warnings"]))
+
+    def test_install_git_hook(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            env = os.environ.copy()
+            if "GIT_CONFIG_GLOBAL" not in env and os.name != "nt":
+                env["GIT_CONFIG_GLOBAL"] = "/dev/null"
+
+            subprocess.run(["git", "init", "-b", "main"], cwd=tmp_dir, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            res = install_git_hook(tmp_dir)
+            self.assertTrue(res["ok"])
+
+            pre_commit = os.path.join(tmp_dir, ".git", "hooks", "pre-commit")
+            pre_push = os.path.join(tmp_dir, ".git", "hooks", "pre-push")
+
+            self.assertTrue(os.path.exists(pre_commit))
+            self.assertTrue(os.path.exists(pre_push))
+
+            with open(pre_commit, "r", encoding="utf-8") as f:
+                self.assertIn("pre-commit hook", f.read())
+            with open(pre_push, "r", encoding="utf-8") as f:
+                self.assertIn("pre-push", f.read())
+
+
 if __name__ == "__main__":
     unittest.main()
+

@@ -6,6 +6,9 @@ import os from 'os';
 import { parseDotenv, calculateEntropy, isPlaceholder, validateEnv } from '../../src/validator.js';
 import { inferVarMeta, generateEnvExample, generateSchema } from '../../src/generator.js';
 import { fixEnv } from '../../src/fixer.js';
+import { scanGitHistory } from '../../src/gitRecon.js';
+import { installGitHook } from '../../src/hook.js';
+import { execSync } from 'child_process';
 
 describe('Validator & Security Rules (Node)', () => {
   test('parseDotenv correctly parses keys, values, quotes, and comments', () => {
@@ -177,3 +180,80 @@ describe('Fixer (Node)', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 });
+
+describe('Passive Git Reconnaissance & Hooks (Node)', () => {
+  test('scanGitHistory detects historical .env commits even after deletion', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotvet-git-recon-'));
+    const env = { ...process.env };
+    if (!env.GIT_CONFIG_GLOBAL && process.platform !== 'win32') {
+      env.GIT_CONFIG_GLOBAL = '/dev/null';
+    }
+
+    try {
+      execSync('git init -b main', { cwd: tempDir, env });
+      execSync('git config user.name "Test"', { cwd: tempDir, env });
+      execSync('git config user.email "test@example.com"', { cwd: tempDir, env });
+
+      // Commit 1: .env committed
+      fs.writeFileSync(path.join(tempDir, '.env'), 'SECRET_KEY=123456');
+      execSync('git add .env && git commit -m "add sensitive env file"', { cwd: tempDir, env });
+
+      // Commit 2: delete .env file
+      fs.unlinkSync(path.join(tempDir, '.env'));
+      execSync('git add -A && git commit -m "remove env file"', { cwd: tempDir, env });
+
+      // Commit 3: add safe .env.example
+      fs.writeFileSync(path.join(tempDir, '.env.example'), 'SECRET_KEY=your_key_here');
+      execSync('git add .env.example && git commit -m "add safe example"', { cwd: tempDir, env });
+
+      const leaks = scanGitHistory(tempDir);
+      assert.ok(leaks.length >= 1, 'Should detect at least 1 historical leak');
+      assert.strictEqual(leaks[0].file, '.env');
+      assert.ok(leaks[0].commit);
+      assert.strictEqual(leaks[0].author, 'Test');
+      assert.strictEqual(leaks[0].isPushed, false);
+
+      // Verify safe example was not flagged
+      assert.ok(!leaks.some(l => l.file === '.env.example'));
+
+      // Verify validateEnv surfaces HISTORICAL_ENV_LEAK warning
+      const res = validateEnv({
+        discoveredVars: new Map(),
+        rootDir: tempDir,
+        strict: false
+      });
+      assert.ok(res.warnings.some(w => w.rule === 'HISTORICAL_ENV_LEAK'));
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('installGitHook creates both pre-commit and pre-push hooks', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotvet-hook-test-'));
+    const env = { ...process.env };
+    if (!env.GIT_CONFIG_GLOBAL && process.platform !== 'win32') {
+      env.GIT_CONFIG_GLOBAL = '/dev/null';
+    }
+
+    try {
+      execSync('git init -b main', { cwd: tempDir, env });
+      const res = installGitHook(tempDir);
+      assert.strictEqual(res.ok, true);
+
+      const preCommit = path.join(tempDir, '.git', 'hooks', 'pre-commit');
+      const prePush = path.join(tempDir, '.git', 'hooks', 'pre-push');
+
+      assert.ok(fs.existsSync(preCommit), 'pre-commit hook must exist');
+      assert.ok(fs.existsSync(prePush), 'pre-push hook must exist');
+
+      const preCommitContent = fs.readFileSync(preCommit, 'utf8');
+      assert.ok(preCommitContent.includes('pre-commit hook'));
+
+      const prePushContent = fs.readFileSync(prePush, 'utf8');
+      assert.ok(prePushContent.includes('pre-push'));
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+});
+

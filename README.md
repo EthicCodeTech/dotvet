@@ -29,6 +29,8 @@ Most environment linters (`dotenv-safe`, `envalid`) only check if a key **exists
 | **Detects Unconfigured Template URLs** (`postgres://localhost...`) | ✅ **Hard Fail** | ❌ | ❌ | ❌ |
 | **Entropy & Repeating Pattern Detector** (`abcdefgh`*4) | ✅ **Yes** | ❌ | ❌ | ✅ (Git history only) |
 | **Auto-Heals Secrets & `.gitignore`** (`dotvet fix`) | ✅ **Yes** | ❌ | ❌ | ❌ |
+| **Passive Git History Leak Reconnaissance** | ✅ **Yes (Instant)** | ❌ | ❌ | ✅ (Git commits only) |
+| **Dual Git Hooks (`pre-commit` & `pre-push`)** | ✅ **Yes** | ❌ | ❌ | ⚠️ (Manual hook) |
 | **Generates Machine-Readable `.env.schema.json` Contract** | ✅ **Yes** | ❌ | ❌ | ❌ |
 | **Native GitHub Action** (`uses: EthicCodeTech/dotvet@v1`) | ✅ **Yes** | ❌ | ⚠️ | ⚠️ |
 | **Runtime Dependencies** | **0** | Multiple | Multiple | Go binary |
@@ -156,6 +158,9 @@ dotvet scan — Discovered 3 environment variables:
 | `JWT_UNDERSIZED` | **FAIL** | JWT secret is under 32 characters (violates minimum 256-bit requirement for HS256). |
 | `LOW_ENTROPY_SECRET` | **WARN** / **FAIL** | Sensitive key has Shannon entropy < 2.5 bits/char (repeating or sequential keys). |
 | `GITIGNORE_MISSING` | **WARN** | `.env` exists in directory but is not tracked in `.gitignore`. |
+| `HISTORICAL_ENV_LEAK` | **WARN** / **FAIL** | A `.env` file was committed in past Git history (even if deleted now, it is stored in Git objects). |
+| `TEMPLATE_URL_UNCONFIGURED` | **FAIL** | Unconfigured mock connection URL (`postgresql://user:password@localhost...`). |
+| `VENDOR_SECRET_EXPOSED` | **WARN** | Live production API key pattern detected (e.g. Stripe `sk_live`). |
 
 ---
 

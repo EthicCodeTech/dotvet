@@ -3,6 +3,7 @@ import re
 import math
 from collections import Counter
 from typing import Dict, List, Any, Optional
+from dotvet.git_recon import scan_git_history
 
 PLACEHOLDER_PATTERNS = [
     re.compile(r"^changeme$", re.I),
@@ -165,7 +166,7 @@ def is_placeholder(val: str) -> bool:
 
 def validate_env(
     discovered_vars: Dict[str, Dict[str, Any]],
-    env_values: Dict[str, str],
+    env_values: Optional[Dict[str, str]] = None,
     root_dir: str = ".",
     env_file_path: str = ".env",
     strict: bool = False,
@@ -176,7 +177,8 @@ def validate_env(
 
     # Merge process env and provided .env
     merged_env = dict(os.environ)
-    merged_env.update(env_values)
+    if env_values:
+        merged_env.update(env_values)
 
     # 1. Check gitignore safety
     full_env_path = os.path.join(root_dir, env_file_path)
@@ -202,6 +204,24 @@ def validate_env(
                 "message": f"{env_file_path} is present but not explicitly listed in .gitignore. Risk of committing secrets to Git!",
                 "solution": f'Add "{env_file_path}" to your .gitignore file.',
             })
+
+    # 1b. Passive Reconnaissance: Glance at Git history for past .env commits
+    git_leaks = scan_git_history(root_dir)
+    for leak in git_leaks:
+        push_status = "⚠️ PUSHED TO REMOTE" if leak.get("is_pushed") else "Local only (not pushed)"
+        solution = (
+            f"This commit was pushed to a remote repository! If this repository is or ever becomes public, credentials in {leak['file']} WILL be scraped by automated bots in seconds. ROTATE ALL EXPOSED SECRETS IMMEDIATELY at your providers (OpenAI, AWS, MongoDB, Stripe, etc.)."
+            if leak.get("is_pushed")
+            else "This commit is currently local-only. Remove the commit or reset before pushing to your remote."
+        )
+        issues.append({
+            "name": leak["file"],
+            "severity": "ERROR" if strict else "WARN",
+            "rule": "HISTORICAL_ENV_LEAK",
+            "message": f"Historical leak detected: \"{leak['file']}\" was committed in commit {leak['commit']} by {leak['author']} on {leak['date']} (\"{leak['message']}\"). Status: {push_status}. Even if deleted later, it remains permanently stored in Git objects!",
+            "solution": solution,
+            "historical": leak,
+        })
 
     # 2. Validate every variable found in code
     for var_name, meta in discovered_vars.items():

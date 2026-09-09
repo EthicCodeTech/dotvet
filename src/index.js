@@ -3,4 +3,5 @@ export { parseDotenv, validateEnv, calculateEntropy, detectRepeatingPattern, isP
 export { generateEnvExample, generateSchema, writeGeneratedFiles } from './generator.js';
 export { fixEnv, generateSecureSecret } from './fixer.js';
 export { installGitHook } from './hook.js';
+export { scanGitHistory } from './gitRecon.js';
 export { run } from './cli.js';
