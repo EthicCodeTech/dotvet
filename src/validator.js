@@ -95,6 +95,56 @@ export function calculateEntropy(str) {
 }
 
 /**
+ * Detect single-character or multi-character repeating patterns in secrets.
+ * Examples: "aaaaaaaa", "abcdefghabcdefgh", "secretsecretsecret"
+ */
+export function detectRepeatingPattern(str) {
+  if (!str || str.length < 6) return null;
+  const len = str.length;
+
+  // 1. Single character repeating (e.g. 6+ repeating chars)
+  if (/^(.)\1{5,}$/.test(str)) {
+    return { unit: str[0], repetitions: len, type: 'single' };
+  }
+
+  // 2. Exact periodic cycle repetition (e.g. "abcdefgh" * 4 == 32 chars)
+  for (let k = 2; k <= Math.floor(len / 2); k++) {
+    if (len % k === 0) {
+      const unit = str.slice(0, k);
+      if (unit.repeat(len / k) === str) {
+        return { unit, repetitions: len / k, type: 'exact' };
+      }
+    }
+  }
+
+  // 3. Cyclic prefix repetition (e.g. "secret" * 5 + "se" = 32 chars)
+  for (let k = 2; k <= 16 && k <= Math.floor(len / 2); k++) {
+    const unit = str.slice(0, k);
+    const fullCycles = Math.floor(len / k);
+    const rem = len % k;
+    const candidate = unit.repeat(fullCycles) + unit.slice(0, rem);
+    if (candidate === str && fullCycles >= 2) {
+      return { unit, repetitions: fullCycles, type: 'cycle' };
+    }
+  }
+
+  // 4. Prefix pattern repeating across >= 70% of length
+  for (let k = 2; k <= 16 && k <= Math.floor(len / 2); k++) {
+    const unit = str.slice(0, k);
+    let count = 0;
+    for (let i = 0; i + k <= len; i += k) {
+      if (str.slice(i, i + k) === unit) count++;
+      else break;
+    }
+    if (count >= 2 && (count * k) / len >= 0.70) {
+      return { unit, repetitions: count, type: 'partial' };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Check if a value is a placeholder.
  */
 export function isPlaceholder(val) {
@@ -225,20 +275,24 @@ export function validateEnv({
 
     // Case E: General Secret strength & entropy check (applies to secrets and JWTs)
     if (SECRET_NAME_REGEX.test(varName) || JWT_NAME_REGEX.test(varName)) {
-      // Check single repeating character (e.g. "aaaaaaaaaaaa")
-      if (/^(.)\1{5,}$/.test(strVal)) {
+      // Check pattern repetition (single characters OR repeating multi-character patterns e.g. "abcdefghabcdefgh")
+      const patternMatch = detectRepeatingPattern(strVal);
+      if (patternMatch) {
+        const desc = patternMatch.unit.length === 1 
+          ? 'repeating single characters' 
+          : `repeating sequence "${patternMatch.unit}"`;
         issues.push({
           name: varName,
           severity: 'ERROR',
           rule: 'REPETITIVE_SECRET',
-          message: `Variable ${varName} consists of repeating single characters. Completely guessable!`,
+          message: `Variable ${varName} consists of ${desc} (${patternMatch.repetitions} repetitions). Completely guessable!`,
           occurrences,
           solution: `Generate a truly random secret.`
         });
         continue;
       }
 
-      // Check entropy
+      // Check Shannon entropy
       const entropy = calculateEntropy(strVal);
       if (entropy < 2.5 && strVal.length >= 8) {
         issues.push({

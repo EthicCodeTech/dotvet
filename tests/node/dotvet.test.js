@@ -64,6 +64,18 @@ describe('Validator & Security Rules (Node)', () => {
     assert.strictEqual(res.errors[0].rule, 'REPETITIVE_SECRET');
   });
 
+  test('JWT secret with multi-character repeating pattern (e.g. abcdefgh*4) triggers REPETITIVE_SECRET hard error', () => {
+    const discovered = new Map([
+      ['JWT_SECRET', { occurrences: [{ file: 'auth.js', line: 10, snippet: 'process.env.JWT_SECRET' }] }]
+    ]);
+    const env = { JWT_SECRET: 'abcdefghabcdefghabcdefghabcdefgh' }; // 8-char pattern * 4
+    const res = validateEnv({ discoveredVars: discovered, envValues: env });
+    assert.strictEqual(res.ok, false);
+    assert.strictEqual(res.errors.length, 1);
+    assert.strictEqual(res.errors[0].rule, 'REPETITIVE_SECRET');
+    assert.ok(res.errors[0].message.includes('abcdefgh'));
+  });
+
   test('JWT secret with >= 32 characters passes', () => {
     const discovered = new Map([
       ['JWT_SECRET', { occurrences: [{ file: 'auth.js', line: 10, snippet: 'process.env.JWT_SECRET' }] }]

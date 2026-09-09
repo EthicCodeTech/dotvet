@@ -84,6 +84,50 @@ def calculate_entropy(s: str) -> float:
     return entropy
 
 
+def detect_repeating_pattern(s: str) -> Optional[Dict[str, Any]]:
+    """Detect single-character or multi-character repeating patterns in secrets.
+    
+    Examples: 'aaaaaaaa', 'abcdefghabcdefgh', 'secretsecretsecret'
+    """
+    if not s or len(s) < 6:
+        return None
+    length = len(s)
+
+    # 1. Single character repeating (e.g. 6+ repeating chars)
+    if len(set(s)) == 1:
+        return {"unit": s[0], "repetitions": length, "type": "single"}
+
+    # 2. Exact periodic cycle repetition (e.g. 'abcdefgh' * 4 == 32 chars)
+    for k in range(2, length // 2 + 1):
+        if length % k == 0:
+            unit = s[:k]
+            if unit * (length // k) == s:
+                return {"unit": unit, "repetitions": length // k, "type": "exact"}
+
+    # 3. Cyclic prefix repetition (e.g. 'secret' * 5 + 'se' = 32 chars)
+    for k in range(2, min(17, length // 2 + 1)):
+        unit = s[:k]
+        full_cycles = length // k
+        rem = length % k
+        candidate = (unit * full_cycles) + unit[:rem]
+        if candidate == s and full_cycles >= 2:
+            return {"unit": unit, "repetitions": full_cycles, "type": "cycle"}
+
+    # 4. Prefix pattern repeating across >= 70% of length
+    for k in range(2, min(17, length // 2 + 1)):
+        unit = s[:k]
+        count = 0
+        for i in range(0, length - k + 1, k):
+            if s[i:i + k] == unit:
+                count += 1
+            else:
+                break
+        if count >= 2 and (count * k) / length >= 0.70:
+            return {"unit": unit, "repetitions": count, "type": "partial"}
+
+    return None
+
+
 def is_placeholder(val: str) -> bool:
     """Check if value is a known dummy/placeholder."""
     if not val:
@@ -199,19 +243,25 @@ def validate_env(
 
         # Case E: General secret strength & entropy check (applies to secrets and JWTs)
         if SECRET_NAME_REGEX.search(var_name) or JWT_NAME_REGEX.search(var_name):
-            # Check single repeating character (e.g. "aaaaaaaaaaaa")
-            if len(str_val) >= 6 and len(set(str_val)) == 1:
+            # Check pattern repetition (single characters OR repeating multi-character patterns e.g. "abcdefghabcdefgh")
+            pattern_match = detect_repeating_pattern(str_val)
+            if pattern_match:
+                desc = (
+                    "repeating single characters"
+                    if len(pattern_match["unit"]) == 1
+                    else f'repeating sequence "{pattern_match["unit"]}"'
+                )
                 issues.append({
                     "name": var_name,
                     "severity": "ERROR",
                     "rule": "REPETITIVE_SECRET",
-                    "message": f"Variable {var_name} consists of repeating single characters. Completely guessable!",
+                    "message": f'Variable {var_name} consists of {desc} ({pattern_match["repetitions"]} repetitions). Completely guessable!',
                     "occurrences": occurrences,
                     "solution": "Generate a truly random secret.",
                 })
                 continue
 
-            # Check entropy
+            # Check Shannon entropy
             entropy = calculate_entropy(str_val)
             if entropy < 2.5 and len(str_val) >= 8:
                 issues.append({

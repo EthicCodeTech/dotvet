@@ -68,6 +68,20 @@ class TestDotvetValidator(unittest.TestCase):
         self.assertFalse(res["ok"])
         self.assertEqual(res["errors"][0]["rule"], "REPETITIVE_SECRET")
 
+    def test_jwt_pattern_repetition(self):
+        discovered = {
+            "JWT_SECRET": {
+                "occurrences": [{"file": "auth.py", "line": 5, "snippet": "os.getenv('JWT_SECRET')"}]
+            }
+        }
+        res = validate_env(
+            discovered_vars=discovered,
+            env_values={"JWT_SECRET": "abcdefgh" * 4},
+        )
+        self.assertFalse(res["ok"])
+        self.assertEqual(res["errors"][0]["rule"], "REPETITIVE_SECRET")
+        self.assertIn("abcdefgh", res["errors"][0]["message"])
+
     def test_jwt_valid(self):
         discovered = {
             "JWT_SECRET": {
