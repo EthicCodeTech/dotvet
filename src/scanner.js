@@ -93,6 +93,51 @@ const SYSTEM_IGNORES = new Set([
   'NETLIFY'
 ]);
 
+// Standard RFC 3875 & PHP runtime CGI/server request variables that are NOT .env variables
+export const CGI_SERVER_VARS = new Set([
+  'REQUEST_METHOD',
+  'REQUEST_URI',
+  'REQUEST_TIME',
+  'REQUEST_TIME_FLOAT',
+  'REQUEST_SCHEME',
+  'QUERY_STRING',
+  'DOCUMENT_ROOT',
+  'DOCUMENT_URI',
+  'SCRIPT_FILENAME',
+  'SCRIPT_NAME',
+  'PHP_SELF',
+  'REMOTE_ADDR',
+  'REMOTE_PORT',
+  'REMOTE_HOST',
+  'REMOTE_USER',
+  'SERVER_NAME',
+  'SERVER_ADDR',
+  'SERVER_PORT',
+  'SERVER_PROTOCOL',
+  'SERVER_SOFTWARE',
+  'SERVER_SIGNATURE',
+  'SERVER_ADMIN',
+  'HTTPS',
+  'GATEWAY_INTERFACE',
+  'AUTH_TYPE',
+  'CONTENT_TYPE',
+  'CONTENT_LENGTH',
+  'PATH_INFO',
+  'PATH_TRANSLATED',
+  'ORIG_PATH_INFO',
+  'FCGI_ROLE',
+  'CONTEXT_DOCUMENT_ROOT',
+  'CONTEXT_PREFIX'
+]);
+
+export function isCgiServerVar(varName) {
+  if (!varName) return false;
+  if ((varName.startsWith('HTTP_') && varName !== 'HTTP_PROXY' && varName !== 'HTTPS_PROXY') || varName.startsWith('REDIRECT_')) {
+    return true;
+  }
+  return CGI_SERVER_VARS.has(varName);
+}
+
 function getPatternsForFile(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const basename = path.basename(filePath);
@@ -156,7 +201,7 @@ export function findFiles(dir, rootDir = dir, customIgnores = []) {
 /**
  * Scan a single file for env variable usages.
  */
-export function scanFile(filePath, rootDir = process.cwd()) {
+export function scanFile(filePath, rootDir = process.cwd(), options = {}) {
   const matches = [];
   const patterns = getPatternsForFile(filePath);
   if (patterns.length === 0) return matches;
@@ -170,6 +215,7 @@ export function scanFile(filePath, rootDir = process.cwd()) {
 
   const lines = content.split(/\r?\n/);
   const relPath = path.relative(rootDir, filePath);
+  const includeCgi = Boolean(options && options.includeCgi);
 
   lines.forEach((lineText, idx) => {
     const lineNum = idx + 1;
@@ -183,7 +229,9 @@ export function scanFile(filePath, rootDir = process.cwd()) {
       let match;
       while ((match = regex.exec(lineText)) !== null) {
         const varName = extract(match);
-        if (varName && !SYSTEM_IGNORES.has(varName) && /^[A-Z][A-Z0-9_]*$/.test(varName)) {
+        if (!varName) continue;
+        if (!includeCgi && isCgiServerVar(varName)) continue;
+        if (!SYSTEM_IGNORES.has(varName) && /^[A-Z][A-Z0-9_]*$/.test(varName)) {
           matches.push({
             name: varName,
             file: relPath,
@@ -219,13 +267,15 @@ export function loadGitignorePatterns(rootDir) {
 /**
  * Scan entire codebase starting at rootDir.
  */
-export function scanCodebase(rootDir = process.cwd(), customIgnores = []) {
+export function scanCodebase(rootDir = process.cwd(), options = {}) {
+  const customIgnores = Array.isArray(options) ? options : (options.customIgnores || []);
+  const includeCgi = typeof options === 'object' && !Array.isArray(options) ? Boolean(options.includeCgi) : false;
   const gitignorePatterns = loadGitignorePatterns(rootDir);
   const files = findFiles(rootDir, rootDir, [...gitignorePatterns, ...customIgnores]);
   const varMap = new Map();
 
   for (const file of files) {
-    const hits = scanFile(file, rootDir);
+    const hits = scanFile(file, rootDir, { includeCgi });
     for (const hit of hits) {
       if (!varMap.has(hit.name)) {
         varMap.set(hit.name, {

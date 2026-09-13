@@ -94,6 +94,51 @@ SYSTEM_IGNORES = {
     "NETLIFY",
 }
 
+# Standard RFC 3875 & PHP runtime CGI/server request variables that are NOT .env variables
+CGI_SERVER_VARS = {
+    "REQUEST_METHOD",
+    "REQUEST_URI",
+    "REQUEST_TIME",
+    "REQUEST_TIME_FLOAT",
+    "REQUEST_SCHEME",
+    "QUERY_STRING",
+    "DOCUMENT_ROOT",
+    "DOCUMENT_URI",
+    "SCRIPT_FILENAME",
+    "SCRIPT_NAME",
+    "PHP_SELF",
+    "REMOTE_ADDR",
+    "REMOTE_PORT",
+    "REMOTE_HOST",
+    "REMOTE_USER",
+    "SERVER_NAME",
+    "SERVER_ADDR",
+    "SERVER_PORT",
+    "SERVER_PROTOCOL",
+    "SERVER_SOFTWARE",
+    "SERVER_SIGNATURE",
+    "SERVER_ADMIN",
+    "HTTPS",
+    "GATEWAY_INTERFACE",
+    "AUTH_TYPE",
+    "CONTENT_TYPE",
+    "CONTENT_LENGTH",
+    "PATH_INFO",
+    "PATH_TRANSLATED",
+    "ORIG_PATH_INFO",
+    "FCGI_ROLE",
+    "CONTEXT_DOCUMENT_ROOT",
+    "CONTEXT_PREFIX",
+}
+
+
+def is_cgi_server_var(var_name: str) -> bool:
+    if not var_name:
+        return False
+    if (var_name.startswith("HTTP_") and var_name not in ("HTTP_PROXY", "HTTPS_PROXY")) or var_name.startswith("REDIRECT_"):
+        return True
+    return var_name in CGI_SERVER_VARS
+
 
 def get_patterns_for_file(file_path: str) -> List[re.Pattern]:
     ext = Path(file_path).suffix.lower()
@@ -135,7 +180,7 @@ def find_files(root_dir: str, custom_ignores: List[str] = None) -> List[str]:
     return matched_files
 
 
-def scan_file(file_path: str, root_dir: str) -> List[Dict[str, Any]]:
+def scan_file(file_path: str, root_dir: str, include_cgi: bool = False) -> List[Dict[str, Any]]:
     matches = []
     patterns = get_patterns_for_file(file_path)
     if not patterns:
@@ -159,7 +204,11 @@ def scan_file(file_path: str, root_dir: str) -> List[Dict[str, Any]]:
         for pattern in patterns:
             for match in pattern.finditer(line_text):
                 var_name = match.group(1)
-                if var_name and var_name not in SYSTEM_IGNORES and re.match(r"^[A-Z][A-Z0-9_]*$", var_name):
+                if not var_name:
+                    continue
+                if not include_cgi and is_cgi_server_var(var_name):
+                    continue
+                if var_name not in SYSTEM_IGNORES and re.match(r"^[A-Z][A-Z0-9_]*$", var_name):
                     matches.append({
                         "name": var_name,
                         "file": rel_path,
@@ -187,14 +236,18 @@ def load_gitignore_patterns(root_dir: str) -> List[str]:
         return []
 
 
-def scan_codebase(root_dir: str = ".", custom_ignores: List[str] = None) -> Dict[str, Dict[str, Any]]:
+def scan_codebase(
+    root_dir: str = ".",
+    custom_ignores: List[str] = None,
+    include_cgi: bool = False,
+) -> Dict[str, Dict[str, Any]]:
     gitignore_patterns = load_gitignore_patterns(root_dir)
     all_ignores = gitignore_patterns + (custom_ignores or [])
     files = find_files(root_dir, all_ignores)
     var_map: Dict[str, Dict[str, Any]] = {}
 
     for file_path in files:
-        hits = scan_file(file_path, root_dir)
+        hits = scan_file(file_path, root_dir, include_cgi=include_cgi)
         for hit in hits:
             name = hit["name"]
             if name not in var_map:

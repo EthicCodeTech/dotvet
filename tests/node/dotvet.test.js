@@ -8,6 +8,8 @@ import { inferVarMeta, generateEnvExample, generateSchema } from '../../src/gene
 import { fixEnv } from '../../src/fixer.js';
 import { scanGitHistory } from '../../src/gitRecon.js';
 import { installGitHook } from '../../src/hook.js';
+import { scanFile } from '../../src/scanner.js';
+import { run } from '../../src/cli.js';
 import { execSync } from 'child_process';
 
 describe('Validator & Security Rules (Node)', () => {
@@ -323,5 +325,90 @@ describe('Passive Git Reconnaissance & Hooks (Node)', () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  test('loads configuration and ignores from dotvet.config.json', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotvet-config-test-'));
+    try {
+      const config = {
+        ignore: ['EXEMPT_VAR', 'ANOTHER_VAR:WEAK_SECRET_LENGTH'],
+        rules: {
+          JWT_UNDERSIZED: { severity: 'warn' }
+        }
+      };
+      fs.writeFileSync(path.join(tempDir, 'dotvet.config.json'), JSON.stringify(config), 'utf8');
+      fs.writeFileSync(path.join(tempDir, '.env'), 'EXEMPT_VAR=changeme\nANOTHER_VAR=short\n');
+
+      const discovered = new Map([
+        ['EXEMPT_VAR', { occurrences: [{ file: 'app.js', line: 1, snippet: 'process.env.EXEMPT_VAR' }] }],
+        ['ANOTHER_VAR', { occurrences: [{ file: 'app.js', line: 2, snippet: 'process.env.ANOTHER_VAR' }] }]
+      ]);
+
+      const res = validateEnv({
+        discoveredVars: discovered,
+        envValues: { EXEMPT_VAR: 'changeme', ANOTHER_VAR: 'short' },
+        rootDir: tempDir
+      });
+
+      // EXEMPT_VAR should be completely ignored; ANOTHER_VAR should ignore WEAK_SECRET_LENGTH
+      assert.strictEqual(res.errors.length, 0);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
+
+describe('CGI Filtering & Scaffolding (Node)', () => {
+  test('scanFile ignores RFC 3875 CGI / $_SERVER superglobals by default but retains HTTP_PROXY', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotvet-cgi-test-'));
+    try {
+      const phpFile = path.join(tempDir, 'index.php');
+      const phpContent = `<?php
+        $method = $_SERVER['REQUEST_METHOD'];
+        $host = $_SERVER['HTTP_HOST'];
+        $ua = $_SERVER['HTTP_USER_AGENT'];
+        $ip = $_SERVER['REMOTE_ADDR'];
+        $proxy = getenv('HTTP_PROXY');
+        $db = getenv('DB_PASSWORD');
+      `;
+      fs.writeFileSync(phpFile, phpContent, 'utf8');
+
+      const hitsDefault = scanFile(phpFile, tempDir, { includeCgi: false });
+      const varNamesDefault = hitsDefault.map(h => h.name);
+
+      assert.ok(!varNamesDefault.includes('REQUEST_METHOD'), 'REQUEST_METHOD should be ignored');
+      assert.ok(!varNamesDefault.includes('HTTP_HOST'), 'HTTP_HOST should be ignored');
+      assert.ok(!varNamesDefault.includes('HTTP_USER_AGENT'), 'HTTP_USER_AGENT should be ignored');
+      assert.ok(!varNamesDefault.includes('REMOTE_ADDR'), 'REMOTE_ADDR should be ignored');
+      assert.ok(varNamesDefault.includes('HTTP_PROXY'), 'HTTP_PROXY is a real env var and must be included');
+      assert.ok(varNamesDefault.includes('DB_PASSWORD'), 'DB_PASSWORD must be included');
+
+      const hitsCgi = scanFile(phpFile, tempDir, { includeCgi: true });
+      const varNamesCgi = hitsCgi.map(h => h.name);
+      assert.ok(varNamesCgi.includes('REQUEST_METHOD'), 'REQUEST_METHOD included when includeCgi: true');
+      assert.ok(varNamesCgi.includes('HTTP_HOST'), 'HTTP_HOST included when includeCgi: true');
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('init command scaffolds .dotvetignore and updates .gitignore', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dotvet-init-test-'));
+    try {
+      fs.writeFileSync(path.join(tempDir, '.gitignore'), 'node_modules\n', 'utf8');
+      const exitCode = run(['init', '--dir', tempDir]);
+      assert.strictEqual(exitCode, 0);
+
+      const dotvetignorePath = path.join(tempDir, '.dotvetignore');
+      assert.ok(fs.existsSync(dotvetignorePath), '.dotvetignore should be created');
+      const ignoreContent = fs.readFileSync(dotvetignorePath, 'utf8');
+      assert.ok(ignoreContent.includes('Syntax:'));
+
+      const gitignoreContent = fs.readFileSync(path.join(tempDir, '.gitignore'), 'utf8');
+      assert.ok(gitignoreContent.includes('.env'), '.gitignore should contain .env');
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+});
+
 

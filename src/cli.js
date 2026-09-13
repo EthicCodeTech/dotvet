@@ -23,7 +23,7 @@ const c = {
   bgGreen: '\x1b[42m\x1b[30m'
 };
 
-const VERSION = '0.1.7';
+const VERSION = '0.1.8';
 
 function printHelp() {
   console.log(`
@@ -37,12 +37,15 @@ ${c.bold}COMMANDS:${c.reset}
   ${c.cyan}fix${c.reset}           Auto-heal .env: generate secure secrets, replace placeholders, fix gitignore
   ${c.cyan}scan${c.reset}          Discover all env variables referenced across the codebase
   ${c.cyan}generate${c.reset}      Generate .env.example and .env.schema.json from scanned code
+  ${c.cyan}init${c.reset}          Initialize dotvet configuration and .dotvetignore in project
   ${c.cyan}install-hook${c.reset}  Install Git pre-commit hook to block committing insecure secrets
 
 ${c.bold}OPTIONS:${c.reset}
   ${c.yellow}--fix${c.reset}               Automatically repair detected issues in local .env
   ${c.yellow}--env <path>${c.reset}        Path to env file to inspect ${c.dim}(default: .env)${c.reset}
+  ${c.yellow}--dir, -d <path>${c.reset}    Target directory to scan ${c.dim}(default: current directory)${c.reset}
   ${c.yellow}--ignore, -i <vars>${c.reset}  Ignore specific variables or rules (comma-separated, .dotvetignore supported)
+  ${c.yellow}--include-cgi${c.reset}       Include standard CGI/PHP web server variables in scan
   ${c.yellow}--strict${c.reset}            Treat warnings as hard failures (exit code 1)
   ${c.yellow}--ci${c.reset}                CI mode: format errors as GitHub Actions annotations
   ${c.yellow}--json${c.reset}              Emit results as machine-readable JSON
@@ -59,7 +62,7 @@ ${c.bold}SECURITY CHECKS:${c.reset}
 `);
 }
 
-export function run(args = process.argv.slice(2), rootDir = process.cwd()) {
+export function run(args = process.argv.slice(2), customRootDir = null) {
   if (args.includes('-h') || args.includes('--help')) {
     printHelp();
     return 0;
@@ -70,10 +73,17 @@ export function run(args = process.argv.slice(2), rootDir = process.cwd()) {
     return 0;
   }
 
+  let rootDir = customRootDir || process.cwd();
+  const dirIdx = args.findIndex(a => a === '--dir' || a === '-d');
+  if (dirIdx !== -1 && args[dirIdx + 1] && !args[dirIdx + 1].startsWith('-')) {
+    rootDir = path.resolve(process.cwd(), args[dirIdx + 1]);
+  }
+
   const isJson = args.includes('--json');
   const isCi = args.includes('--ci') || Boolean(process.env.GITHUB_ACTIONS && !isJson);
   const isStrict = args.includes('--strict');
   const wantsFix = args.includes('--fix') || args[0] === 'fix';
+  const includeCgi = args.includes('--include-cgi');
 
   let envFilePath = '.env';
   const envArgIdx = args.indexOf('--env');
@@ -93,7 +103,85 @@ export function run(args = process.argv.slice(2), rootDir = process.cwd()) {
     }
   }
 
-  const subCommand = args[0] && !args[0].startsWith('-') ? args[0] : (wantsFix ? 'fix' : 'check');
+  const knownSubcommands = new Set(['check', 'fix', 'scan', 'generate', 'install-hook', 'init']);
+  let subCommand = wantsFix ? 'fix' : 'check';
+  for (const a of args) {
+    if (!a.startsWith('-')) {
+      if (knownSubcommands.has(a)) {
+        subCommand = a;
+      } else {
+        const candidate = path.resolve(process.cwd(), a);
+        if (fs.existsSync(candidate) && fs.statSync(candidate).isDirectory()) {
+          rootDir = candidate;
+        }
+      }
+    }
+  }
+
+  // Command: INIT
+  if (subCommand === 'init') {
+    const ignorePath = path.join(rootDir, '.dotvetignore');
+    let createdIgnore = false;
+    if (!fs.existsSync(ignorePath)) {
+      const template = `# .dotvetignore
+# Ignore specific variables or rules from dotvet checks
+#
+# Syntax:
+#   VARIABLE_NAME              (exempt variable from all checks)
+#   VARIABLE_NAME:RULE_NAME    (exempt variable from a specific rule)
+#   *:RULE_NAME                (exempt rule globally)
+#
+# Common Examples:
+# LEGACY_API_KEY
+# CUSTOM_TOKEN:WEAK_SECRET_LENGTH
+# *:GITIGNORE_MISSING
+`;
+      fs.writeFileSync(ignorePath, template, 'utf8');
+      createdIgnore = true;
+    }
+
+    const gitignorePath = path.join(rootDir, '.gitignore');
+    let gitignoreAction = null;
+    if (fs.existsSync(gitignorePath)) {
+      try {
+        const content = fs.readFileSync(gitignorePath, 'utf8');
+        const lines = content.split(/\r?\n/).map(l => l.trim());
+        if (!lines.some(l => l === '.env' || l === '*.env' || l.startsWith('.env*'))) {
+          const appended = content.endsWith('\n') ? '.env\n.env*.local\n' : '\n.env\n.env*.local\n';
+          fs.appendFileSync(gitignorePath, appended, 'utf8');
+          gitignoreAction = 'Added .env to .gitignore';
+        }
+      } catch {
+        // ignore
+      }
+    } else {
+      try {
+        fs.writeFileSync(gitignorePath, '.env\n.env*.local\n', 'utf8');
+        gitignoreAction = 'Created .gitignore with .env';
+      } catch {
+        // ignore
+      }
+    }
+
+    if (isJson) {
+      console.log(JSON.stringify({ createdIgnore, gitignoreAction, rootDir }));
+      return 0;
+    }
+
+    console.log(`\n${c.bold}${c.cyan}dotvet init${c.reset} — Initialized dotvet in ${c.cyan}${rootDir}${c.reset}:\n`);
+    if (createdIgnore) {
+      console.log(`  ${c.green}✔${c.reset} Created ${c.bold}.dotvetignore${c.reset}`);
+    } else {
+      console.log(`  ${c.dim}ℹ ${c.reset}.dotvetignore already exists`);
+    }
+    if (gitignoreAction) {
+      console.log(`  ${c.green}✔${c.reset} ${gitignoreAction}`);
+    } else {
+      console.log(`  ${c.dim}ℹ ${c.reset}.gitignore already protects .env`);
+    }
+    console.log(`\n${c.bgGreen} READY ${c.reset} Run ${c.cyan}npx dotvet check${c.reset} to audit your environment.\n`);
+    return 0;
+  }
 
   // Command: INSTALL-HOOK
   if (subCommand === 'install-hook') {
@@ -111,7 +199,7 @@ export function run(args = process.argv.slice(2), rootDir = process.cwd()) {
   }
 
   // 1. Scan codebase
-  const discoveredVars = scanCodebase(rootDir);
+  const discoveredVars = scanCodebase(rootDir, { includeCgi });
 
   // Command: FIX
   if (subCommand === 'fix' || wantsFix) {

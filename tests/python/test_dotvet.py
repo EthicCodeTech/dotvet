@@ -13,6 +13,8 @@ from dotvet.generator import infer_var_meta, generate_schema
 from dotvet.fixer import fix_env
 from dotvet.git_recon import scan_git_history
 from dotvet.hook import install_git_hook
+from dotvet.scanner import scan_file
+from dotvet.cli import run
 
 
 class TestDotvetValidator(unittest.TestCase):
@@ -322,7 +324,82 @@ class TestPassiveGitRecon(unittest.TestCase):
             with open(pre_push, "r", encoding="utf-8") as f:
                 self.assertIn("pre-push", f.read())
 
+    def test_dotvet_config_json(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = {
+                "ignore": ["EXEMPT_VAR", "ANOTHER_VAR:WEAK_SECRET_LENGTH"],
+                "rules": {
+                    "JWT_UNDERSIZED": {"severity": "warn"}
+                }
+            }
+            with open(os.path.join(tmp_dir, "dotvet.config.json"), "w", encoding="utf-8") as f:
+                json.dump(config, f)
+            with open(os.path.join(tmp_dir, ".env"), "w", encoding="utf-8") as f:
+                f.write("EXEMPT_VAR=changeme\nANOTHER_VAR=short\n")
+
+            discovered = {
+                "EXEMPT_VAR": {"occurrences": [{"file": "app.py", "line": 1, "snippet": "os.getenv('EXEMPT_VAR')"}]},
+                "ANOTHER_VAR": {"occurrences": [{"file": "app.py", "line": 2, "snippet": "os.getenv('ANOTHER_VAR')"}]},
+            }
+
+            res = validate_env(
+                discovered_vars=discovered,
+                env_values={"EXEMPT_VAR": "changeme", "ANOTHER_VAR": "short"},
+                root_dir=tmp_dir,
+            )
+            self.assertEqual(len(res["errors"]), 0)
+
+
+class TestDotvetCgiAndScaffold(unittest.TestCase):
+    def test_cgi_filtering(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            php_file = os.path.join(tmp_dir, "index.php")
+            php_content = """<?php
+                $method = $_SERVER['REQUEST_METHOD'];
+                $host = $_SERVER['HTTP_HOST'];
+                $ua = $_SERVER['HTTP_USER_AGENT'];
+                $ip = $_SERVER['REMOTE_ADDR'];
+                $proxy = getenv('HTTP_PROXY');
+                $db = getenv('DB_PASSWORD');
+            """
+            with open(php_file, "w", encoding="utf-8") as f:
+                f.write(php_content)
+
+            hits_default = scan_file(php_file, tmp_dir, include_cgi=False)
+            names_default = [h["name"] for h in hits_default]
+
+            self.assertNotIn("REQUEST_METHOD", names_default)
+            self.assertNotIn("HTTP_HOST", names_default)
+            self.assertNotIn("HTTP_USER_AGENT", names_default)
+            self.assertNotIn("REMOTE_ADDR", names_default)
+            self.assertIn("HTTP_PROXY", names_default)
+            self.assertIn("DB_PASSWORD", names_default)
+
+            hits_cgi = scan_file(php_file, tmp_dir, include_cgi=True)
+            names_cgi = [h["name"] for h in hits_cgi]
+            self.assertIn("REQUEST_METHOD", names_cgi)
+            self.assertIn("HTTP_HOST", names_cgi)
+
+    def test_init_command(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            gitignore_path = os.path.join(tmp_dir, ".gitignore")
+            with open(gitignore_path, "w", encoding="utf-8") as f:
+                f.write("venv/\n")
+
+            exit_code = run(["init", "--dir", tmp_dir])
+            self.assertEqual(exit_code, 0)
+
+            dotvetignore_path = os.path.join(tmp_dir, ".dotvetignore")
+            self.assertTrue(os.path.exists(dotvetignore_path))
+            with open(dotvetignore_path, "r", encoding="utf-8") as f:
+                self.assertIn("Syntax:", f.read())
+
+            with open(gitignore_path, "r", encoding="utf-8") as f:
+                content = f.read()
+                self.assertIn(".env", content)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

@@ -106,8 +106,8 @@ def load_ignore_config(root_dir: str = ".", env_file_path: str = ".env", env_con
         except Exception:
             pass
 
-    # 2. .dotvetrc or .dotvetrc.json
-    for rc in [".dotvetrc.json", ".dotvetrc"]:
+    # 2. dotvet.config.json, .dotvetrc.json, .dotvetrc
+    for rc in ["dotvet.config.json", ".dotvetrc.json", ".dotvetrc"]:
         rc_path = os.path.join(root_dir, rc)
         if os.path.isfile(rc_path):
             try:

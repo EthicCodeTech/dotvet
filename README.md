@@ -92,13 +92,15 @@ Commit `.env.schema.json` to Git. Whenever a teammate pulls the repository or ru
 Audits `.env` against variables referenced in your code:
 ```bash
 npx dotvet
-# or
+# or target a specific subfolder / monorepo package
+npx dotvet check backend/
+# or specify an alternate env file
 dotvet check --env .env.production
 ```
 
 **Example Output:**
 ```
-dotvet v0.1.7 — Auditing environment variables in /projects/my-app
+dotvet v0.1.8 — Auditing environment variables in /projects/my-app
 Environment file: .env (found) | Found 4 vars in code
 
  WARN  .env (GITIGNORE_MISSING)
@@ -126,7 +128,15 @@ PASSED CHECKS (2):
 
 ---
 
-### 2. `dotvet scan`
+### 2. `dotvet init`
+Initializes dotvet in your project by scaffolding a clean `.dotvetignore` template and verifying `.gitignore` safely excludes `.env`:
+```bash
+npx dotvet init
+```
+
+---
+
+### 3. `dotvet scan`
 Inspects your entire codebase and maps out where every environment variable is used:
 ```bash
 npx dotvet scan
@@ -167,7 +177,9 @@ dotvet scan — Discovered 3 environment variables:
 | Flag | Default | Description |
 | :--- | :--- | :--- |
 | `--env <path>` | `.env` | Path to environment file to audit |
+| `--dir, -d <path>` | `.` | Target directory to scan (or pass positional path: `npx dotvet check backend/`) |
 | `--ignore, -i <vars>` | | Ignore specific variables or rules (comma-separated, e.g. `-i LEGACY_KEY,API_KEY:WEAK_SECRET_LENGTH`) |
+| `--include-cgi` | `false` | Include standard CGI/PHP web server variables (RFC 3875) in scan |
 | `--strict` | `false` | Treat warnings as hard errors (non-zero exit) |
 | `--ci` | `false` | Emits GitHub Actions annotations (`::error file=...`) |
 | `--json` | `false` | Emits machine-readable JSON output |
@@ -176,12 +188,12 @@ dotvet scan — Discovered 3 environment variables:
 
 ---
 
-## 🛡️ Ignoring Variables & Rules
+## 🛡️ Ignoring Variables & Configuration
 
 Need to exempt a legacy variable or specific rule without compromising the entire security check? `dotvet` supports multiple flexible ways:
 
 ### 1. `.dotvetignore` file (Repo root)
-Create a `.dotvetignore` file:
+Run `dotvet init` to generate `.dotvetignore`:
 ```text
 # Exempt an entire variable from all checks
 LEGACY_CLIENT_TOKEN
@@ -190,7 +202,21 @@ LEGACY_CLIENT_TOKEN
 CUSTOM_KEY:WEAK_SECRET_LENGTH
 ```
 
-### 2. Inline `# dotvet-ignore` comments in `.env`
+### 2. Configuration file (`dotvet.config.json` or `.dotvetrc.json`)
+You can configure global rules and ignores in `dotvet.config.json` or `package.json`:
+```json
+{
+  "ignore": [
+    "LEGACY_API_KEY",
+    "CUSTOM_TOKEN:WEAK_SECRET_LENGTH"
+  ],
+  "rules": {
+    "JWT_UNDERSIZED": { "severity": "warn" }
+  }
+}
+```
+
+### 3. Inline `# dotvet-ignore` comments in `.env`
 ```bash
 # Ignore all checks for this line
 LEGACY_KEY=short # dotvet-ignore
@@ -199,7 +225,7 @@ LEGACY_KEY=short # dotvet-ignore
 DEV_SECRET=short # dotvet-ignore:WEAK_SECRET_LENGTH
 ```
 
-### 3. CLI flag (`--ignore`, `-i`)
+### 4. CLI flag (`--ignore`, `-i`)
 ```bash
 npx dotvet check --strict --ignore "LEGACY_KEY,DEV_KEY:WEAK_SECRET_LENGTH"
 ```

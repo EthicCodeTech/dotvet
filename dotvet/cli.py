@@ -38,12 +38,15 @@ def print_help():
   {C.CYAN}fix{C.RESET}           Auto-heal .env: generate secure secrets, replace placeholders, fix gitignore
   {C.CYAN}scan{C.RESET}          Discover all env variables referenced across the codebase
   {C.CYAN}generate{C.RESET}      Generate .env.example and .env.schema.json from scanned code
+  {C.CYAN}init{C.RESET}          Initialize dotvet configuration and .dotvetignore in project
   {C.CYAN}install-hook{C.RESET}  Install Git pre-commit hook to block committing insecure secrets
 
 {C.BOLD}OPTIONS:{C.RESET}
   {C.YELLOW}--fix{C.RESET}               Automatically repair detected issues in local .env
   {C.YELLOW}--env <path>{C.RESET}        Path to env file to inspect {C.DIM}(default: .env){C.RESET}
+  {C.YELLOW}--dir, -d <path>{C.RESET}    Target directory to scan {C.DIM}(default: current directory){C.RESET}
   {C.YELLOW}--ignore, -i <vars>{C.RESET}  Ignore specific variables or rules (comma-separated, .dotvetignore supported)
+  {C.YELLOW}--include-cgi{C.RESET}       Include standard CGI/PHP web server variables in scan
   {C.YELLOW}--strict{C.RESET}            Treat warnings as hard failures (exit code 1)
   {C.YELLOW}--ci{C.RESET}                CI mode: format errors as GitHub Actions annotations
   {C.YELLOW}--json{C.RESET}              Emit results as machine-readable JSON
@@ -56,6 +59,7 @@ def print_help():
   {C.DIM}•{C.RESET} Weak secrets & low-entropy token detection
   {C.DIM}•{C.RESET} Missing & empty variable detection
   {C.DIM}•{C.RESET} Git hygiene check (.env in .gitignore)
+  {C.DIM}•{C.RESET} Historical git leak reconnaissance
 """)
 
 
@@ -71,10 +75,19 @@ def run(args: List[str] = None, root_dir: str = ".") -> int:
         print(f"dotvet v{__version__}")
         return 0
 
+    if "--dir" in args or "-d" in args:
+        for flag in ("--dir", "-d"):
+            if flag in args:
+                idx = args.index(flag)
+                if idx + 1 < len(args) and not args[idx + 1].startswith("-"):
+                    root_dir = os.path.abspath(args[idx + 1])
+                    break
+
     is_json = "--json" in args
     is_ci = "--ci" in args or bool(os.environ.get("GITHUB_ACTIONS") and not is_json)
     is_strict = "--strict" in args
     wants_fix = "--fix" in args or (args and args[0] == "fix")
+    include_cgi = "--include-cgi" in args
 
     env_file_path = ".env"
     if "--env" in args:
@@ -94,11 +107,79 @@ def run(args: List[str] = None, root_dir: str = ".") -> int:
             ignores.append(a[9:])
         i += 1
 
+    known_subcommands = {"check", "fix", "scan", "generate", "install-hook", "init"}
     sub_command = "fix" if wants_fix else "check"
     for a in args:
         if not a.startswith("-"):
-            sub_command = a
-            break
+            if a in known_subcommands:
+                sub_command = a
+            else:
+                candidate = os.path.abspath(a)
+                if os.path.isdir(candidate):
+                    root_dir = candidate
+
+    # Command: INIT
+    if sub_command == "init":
+        ignore_path = os.path.join(root_dir, ".dotvetignore")
+        created_ignore = False
+        if not os.path.exists(ignore_path):
+            template = """# .dotvetignore
+# Ignore specific variables or rules from dotvet checks
+#
+# Syntax:
+#   VARIABLE_NAME              (exempt variable from all checks)
+#   VARIABLE_NAME:RULE_NAME    (exempt variable from a specific rule)
+#   *:RULE_NAME                (exempt rule globally)
+#
+# Common Examples:
+# LEGACY_API_KEY
+# CUSTOM_TOKEN:WEAK_SECRET_LENGTH
+# *:GITIGNORE_MISSING
+"""
+            try:
+                with open(ignore_path, "w", encoding="utf-8") as f:
+                    f.write(template)
+                created_ignore = True
+            except Exception:
+                pass
+
+        gitignore_path = os.path.join(root_dir, ".gitignore")
+        gitignore_action = None
+        if os.path.exists(gitignore_path):
+            try:
+                with open(gitignore_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                lines = [l.strip() for l in content.splitlines()]
+                if not any(l == ".env" or l == "*.env" or l.startswith(".env*") for l in lines):
+                    appended = ".env\n.env*.local\n" if content.endswith("\n") else "\n.env\n.env*.local\n"
+                    with open(gitignore_path, "a", encoding="utf-8") as f:
+                        f.write(appended)
+                    gitignore_action = "Added .env to .gitignore"
+            except Exception:
+                pass
+        else:
+            try:
+                with open(gitignore_path, "w", encoding="utf-8") as f:
+                    f.write(".env\n.env*.local\n")
+                gitignore_action = "Created .gitignore with .env"
+            except Exception:
+                pass
+
+        if is_json:
+            print(json.dumps({"createdIgnore": created_ignore, "gitignoreAction": gitignore_action, "rootDir": root_dir}))
+            return 0
+
+        print(f"\n{C.BOLD}{C.CYAN}dotvet init{C.RESET} — Initialized dotvet in {C.CYAN}{root_dir}{C.RESET}:\n")
+        if created_ignore:
+            print(f"  {C.GREEN}✔{C.RESET} Created {C.BOLD}.dotvetignore{C.RESET}")
+        else:
+            print(f"  {C.DIM}ℹ {C.RESET}.dotvetignore already exists")
+        if gitignore_action:
+            print(f"  {C.GREEN}✔{C.RESET} {gitignore_action}")
+        else:
+            print(f"  {C.DIM}ℹ {C.RESET}.gitignore already protects .env")
+        print(f"\n{C.BG_GREEN} READY {C.RESET} Run {C.CYAN}dotvet check{C.RESET} to audit your environment.\n")
+        return 0
 
     # Command: INSTALL-HOOK
     if sub_command == "install-hook":
@@ -114,7 +195,7 @@ def run(args: List[str] = None, root_dir: str = ".") -> int:
             return 1
 
     # Scan codebase
-    discovered_vars = scan_codebase(root_dir)
+    discovered_vars = scan_codebase(root_dir, include_cgi=include_cgi)
 
     # Command: FIX
     if sub_command == "fix" or wants_fix:

@@ -102,8 +102,8 @@ export function loadIgnoreConfig({
     }
   }
 
-  // 2. .dotvetrc or .dotvetrc.json
-  for (const rcName of ['.dotvetrc.json', '.dotvetrc']) {
+  // 2. dotvet.config.json, .dotvetrc.json, .dotvetrc
+  for (const rcName of ['dotvet.config.json', '.dotvetrc.json', '.dotvetrc']) {
     const rcPath = path.join(rootDir, rcName);
     if (fs.existsSync(rcPath)) {
       try {
