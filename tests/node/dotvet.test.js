@@ -321,6 +321,7 @@ describe('Passive Git Reconnaissance & Hooks (Node)', () => {
 
       const prePushContent = fs.readFileSync(prePush, 'utf8');
       assert.ok(prePushContent.includes('pre-push'));
+      assert.ok(prePushContent.includes('Force push lock'));
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

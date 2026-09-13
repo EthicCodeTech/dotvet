@@ -322,7 +322,9 @@ class TestPassiveGitRecon(unittest.TestCase):
             with open(pre_commit, "r", encoding="utf-8") as f:
                 self.assertIn("pre-commit hook", f.read())
             with open(pre_push, "r", encoding="utf-8") as f:
-                self.assertIn("pre-push", f.read())
+                content = f.read()
+                self.assertIn("pre-push", content)
+                self.assertIn("Force push lock", content)
 
     def test_dotvet_config_json(self):
         with tempfile.TemporaryDirectory() as tmp_dir:

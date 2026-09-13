@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 setup(
     name="dotvet",
     version="0.1.8",
-    description="Zero-config environment variable security scanner & quality gate.",
+    description="The top security tool for vibe coders — zero-config environment variable security scanner & quality gate.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="EthicCode Technologies",

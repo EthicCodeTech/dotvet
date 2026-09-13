@@ -2,12 +2,13 @@
 
 # dotvet 🛡️
 
-**Zero-config environment variable security scanner & quality gate.**
+**The top security tool for vibe coders — zero-config environment variable security scanner & quality gate.**
 
 *Validate presence, ban dangerous placeholders, and enforce secret entropy before deploying to production.*
 
 [![GitHub Marketplace](https://img.shields.io/badge/Marketplace-dotvet--action-blue?style=flat-square&logo=githubactions)](https://github.com/marketplace/actions/dotvet-security-quality-gate)
 [![dotvet: secure](https://ethiccode.in/dotvet/badge.svg)](https://ethiccode.in/dotvet)
+[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=flat-square)](LICENSE)
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg?style=flat-square)](#why-zero-dependencies)
 
@@ -16,6 +17,11 @@
 ---
 
 ## ⚡ Why dotvet? (The Comparison)
+
+> ### 🤖 Built for Vibe Coders
+> When vibe coding with AI agents (Cursor, Claude, Lovable, v0, Copilot), models routinely generate mock placeholders (`JWT_SECRET="changeme"`, `DATABASE_URL="postgres://user:password@localhost:5432/test"`), introduce new env keys in code without updating `.env`, or forget to add `.env` to `.gitignore`.
+>
+> **`dotvet` is the zero-friction safety net.** It requires 0 configuration, spots every security gap in sub-200ms, and heals your local environment with a single command (`npx dotvet fix`).
 
 Most environment linters (`dotenv-safe`, `envalid`) only check if a key **exists**. They don't care if its value is `"changeme"` or a 6-character toy secret that can be cracked in 2 seconds.
 
@@ -264,6 +270,16 @@ Recent attacks on the open-source supply chain demonstrated how deeply nested de
 - Sub-200ms cold startup in CI.
 - Zero transitive supply chain attack surface.
 - Full immunity to third-party package vulnerabilities.
+
+---
+
+## 🤝 Open to Contributions
+
+We love community contributions! Whether you're adding support for a new framework or language pattern, refining regex scanners, or creating new security heuristics, `dotvet` is 100% open source and community-driven.
+
+* Check out our **[Contributing Guide](CONTRIBUTING.md)** for local development setup and guidelines.
+* Found a bug or have a suggestion? Open an **[Issue](https://github.com/EthicCodeTech/dotvet/issues)**.
+* Have a fix ready? Submit a **[Pull Request](https://github.com/EthicCodeTech/dotvet/pulls)**!
 
 ---
 

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dotvet"
 version = "0.1.8"
-description = "Zero-config environment variable security scanner and quality gate CLI."
+description = "The top security tool for vibe coders — zero-config environment variable security scanner & quality gate CLI."
 readme = "README.md"
 authors = [
     { name = "EthicCode Technologies", email = "hi@ethiccode.in" }
