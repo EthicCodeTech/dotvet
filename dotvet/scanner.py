@@ -171,11 +171,15 @@ def find_files(root_dir: str, custom_ignores: List[str] = None) -> List[str]:
         ]
 
         for fname in filenames:
+            full_path = os.path.join(dirpath, fname)
+            rel_path = os.path.relpath(full_path, root_path)
+            if fname in ignore_set or rel_path in ignore_set:
+                continue
             ext = Path(fname).suffix.lower()
             if ext in VALID_EXTENSIONS or fname in SPECIAL_FILENAMES:
                 if fname.endswith(".min.js") or fname.endswith(".lock") or fname == "package-lock.json":
                     continue
-                matched_files.append(os.path.join(dirpath, fname))
+                matched_files.append(full_path)
 
     return matched_files
 

@@ -54,3 +54,7 @@ index.php
 # Local test sandboxes
 test-sandbox/
 
+# Local maintenance scripts
+push-all.sh
+stats.sh
+

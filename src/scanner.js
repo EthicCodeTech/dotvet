@@ -185,6 +185,10 @@ export function findFiles(dir, rootDir = dir, customIgnores = []) {
         results.push(...findFiles(fullPath, rootDir, customIgnores));
       }
     } else if (entry.isFile()) {
+      const relPath = path.relative(rootDir, fullPath);
+      if (ignoreSet.has(entry.name) || ignoreSet.has(relPath)) {
+        continue;
+      }
       const ext = path.extname(entry.name).toLowerCase();
       if (VALID_EXTENSIONS.has(ext) || SPECIAL_FILENAMES.has(entry.name)) {
         if (entry.name.endsWith('.min.js') || entry.name.endsWith('.lock') || entry.name === 'package-lock.json') {
