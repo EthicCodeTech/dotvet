@@ -73,6 +73,20 @@ Always ensure both test suites pass before submitting a pull request!
 
 ---
 
+## 🎬 Regenerating the README Demo GIF
+
+The animated terminal demo at the top of `README.md` is generated with [VHS](https://github.com/charmbracelet/vhs) from `demo/dotvet.tape`, run against the fixture project in `demo/fixtures` (named so dotvet's own scanner skips it — see `DEFAULT_IGNORES` in `src/scanner.js`).
+
+> **Note:** VHS `0.12.0` currently has a [known regression](https://github.com/charmbracelet/vhs/issues/787) that silently produces no output on some platforms. Use `0.11.0` (e.g. `go install github.com/charmbracelet/vhs@v0.11.0`) until that's fixed upstream.
+
+Run this from the repository root (VHS writes `Output` relative to your current directory, not the tape file):
+
+```bash
+PATH="$PWD/demo/bin:$PATH" vhs demo/dotvet.tape
+```
+
+---
+
 ## 🚀 Submitting a Pull Request
 
 1. **Fork the repo** and create a feature branch from `main`:
