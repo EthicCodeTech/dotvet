@@ -255,7 +255,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Verify Environment Variable Security
-        uses: EthicCodeTech/dotvet@main
+        uses: EthicCodeTech/dotvet@v1
         with:
           strict: 'true'
         env:

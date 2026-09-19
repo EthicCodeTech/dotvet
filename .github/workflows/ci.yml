@@ -35,5 +35,24 @@ jobs:
           node bin/dotvet.js --version
           python -m dotvet.cli --version
 
-      - name: Run dotvet Self-Audit Gate
-        run: node bin/dotvet.js check --ci --strict
+      - name: Dogfood Local Action (action.yml)
+        uses: ./
+        with:
+          strict: 'true'
+
+  dogfood-marketplace-action:
+    name: Dogfood Marketplace Action (EthicCodeTech/dotvet@v1)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: dotvet Security Quality Gate
+        uses: EthicCodeTech/dotvet@v1
+        with:
+          strict: 'true'

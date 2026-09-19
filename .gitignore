@@ -58,3 +58,6 @@ test-sandbox/
 push-all.sh
 stats.sh
 
+# Local media generation
+brag-output/
+
